@@ -1,0 +1,3408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="artifact-type" content="dashboard">
+  <meta name="design-style" content="carbon">
+  <title>Clean Sri Lanka — Digital Complaint Management System</title>
+  <link rel="icon" href="[SOURCE_IMAGE_2]">
+
+  <!-- Typography matched to Clean Sri Lanka modern civic identity + IBM Plex Mono for codes/data -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Leaflet Vector Map CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+  <!-- Icons, Charts, Maps, TopoJSON (exact pinned allowlisted CDNs) -->
+  <script src="https://unpkg.com/lucide@1.43.0/dist/umd/lucide.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root {
+      color-scheme: light;
+
+      /* 1. Carbon System Surfaces + Clean Sri Lanka Brand Palette */
+      --background: #ffffff;
+      --surface-container-low: #f4f6f7;
+      --surface-container: #eef1f3;
+      --surface-container-high: #e0e4e7;
+
+      /* Ink */
+      --on-surface: #0b0d0e;
+      --on-surface-variant: #4a5258;
+      --brand-black: #000000;
+
+      /* Rules */
+      --outline: #7c858c;
+      --outline-variant: #dce1e5;
+
+      /* Brand Accents (#7AC114 Civic Green & #0C92CB Civic Cyan) */
+      --brand-green: #7AC114;
+      --brand-green-hover: #69a910;
+      --brand-green-text: #3d6904;      /* >= 4.5:1 text contrast on white */
+      --brand-green-tint: #eef8dc;
+      --primary: #0C92CB;               /* brand cyan for active signals & links */
+      --primary-hover: #0978a8;
+      --primary-text: #066a96;          /* >= 4.5:1 text contrast on white */
+      --on-primary: #ffffff;
+      --primary-container: #dff3fc;
+      --on-primary-container: #064561;
+      --secondary: #4a5258;
+      --tertiary: #3d6904;
+      --error: #c81e28;
+      --error-bg: #fdebec;
+      --on-error: #ffffff;
+
+      /* Semantic states */
+      --positive: #3d6904;
+      --positive-bg: #eef8dc;
+      --warning: #8f5300;
+      --warning-bg: #fff4df;
+
+      /* Focus ring */
+      --focus: #0C92CB;
+
+      /* Data visualization series */
+      --data-1: #0C92CB;
+      --data-2: #7AC114;
+      --data-3: #0b0d0e;
+      --data-4: #066a96;
+      --data-context: #9aa3aa;
+
+      /* Fonts */
+      --font-headline: 'Plus Jakarta Sans', sans-serif;
+      --font-body: 'Plus Jakarta Sans', sans-serif;
+      --font-label: 'IBM Plex Mono', monospace;
+
+      /* Shape (Carbon crisp system) */
+      --rounded: 0.125rem;
+      --rounded-lg: 0.25rem;
+      --rounded-full: 0.75rem;
+
+      /* Style effects */
+      --shadow-1: 0 2px 6px rgb(0 0 0 / 0.08);
+      --shadow-2: 0 6px 20px rgb(0 0 0 / 0.10);
+      --rule: 1px solid var(--outline-variant);
+      --field-rule: 1px solid var(--outline);
+      --indicator: 3px solid var(--primary);
+      --brand-bar: 4px solid var(--brand-green);
+      --map-ocean: #e4f3fa;
+      --map-land: #f4f6f7;
+      --map-border: #b8c7d1;
+      --map-grid-line: rgba(12, 146, 203, 0.08);
+
+      /* Type scale (Dashboard / Tool) */
+      --display-size: clamp(1.85rem, 1.35rem + 1.6vw, 2.75rem);
+      --headline-size: clamp(1.25rem, 1.1rem + 0.55vw, 1.6rem);
+      --subhead-size: clamp(1.05rem, 1rem + 0.25vw, 1.2rem);
+      --body-size: clamp(0.9375rem, 0.9rem + 0.15vw, 1rem);
+      --label-size: 0.75rem;
+
+      /* Spacing scale (4pt base) */
+      --space-xs: 0.25rem;
+      --space-sm: 0.5rem;
+      --space-md: 1rem;
+      --space-lg: 1.5rem;
+      --space-xl: 2.25rem;
+      --space-2xl: 3.5rem;
+
+      /* Motion */
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+      --dur-micro: 120ms;
+      --dur-short: 220ms;
+      --dur-long: 420ms;
+    }
+
+    /* Base reset */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      overflow-x: clip;
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      background: var(--background);
+      color: var(--on-surface);
+      font-family: var(--font-body);
+      font-size: var(--body-size);
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    header { position: static !important; }
+
+    button, input, select, textarea {
+      font-family: inherit;
+      font-size: inherit;
+    }
+
+    :focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    /* Full-width fluid shell (zero blank white left/right side margins) */
+    .app-shell {
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .page-grid {
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0;
+    }
+    .page-grid * { min-width: 0; }
+
+    .fluid-container {
+      width: 100%;
+      max-width: 100%;
+      padding: var(--space-lg) clamp(1rem, 2.5vw, 2.5rem);
+    }
+
+    /* Top Institutional Brand Strip & Navigation */
+    .top-utility-bar {
+      width: 100%;
+      background: var(--brand-black);
+      color: var(--on-primary);
+      padding: var(--space-xs) clamp(1rem, 2.5vw, 2.5rem);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: var(--space-sm);
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .utility-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    .utility-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--brand-green);
+      display: inline-block;
+    }
+
+    .site-header {
+      width: 100%;
+      background: var(--background);
+      border-bottom: 2px solid var(--brand-black);
+    }
+    .header-inner {
+      width: 100%;
+      padding: var(--space-sm) clamp(1rem, 2.5vw, 2.5rem);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-lg);
+      flex-wrap: wrap;
+    }
+    .brand-lockup {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+    }
+    .brand-logo {
+      width: 56px;
+      height: 56px;
+      object-fit: contain;
+      display: block;
+      flex-shrink: 0;
+    }
+    .brand-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .brand-title {
+      margin: 0;
+      font-family: var(--font-headline);
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--brand-black);
+      line-height: 1.15;
+    }
+    .brand-subtitle {
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--on-surface-variant);
+    }
+
+    /* Navigation Tabs */
+    .main-nav {
+      display: flex;
+      align-items: stretch;
+      gap: var(--space-xs);
+      flex-wrap: wrap;
+    }
+    .nav-tab {
+      appearance: none;
+      background: transparent;
+      border: 0;
+      border-bottom: 3px solid transparent;
+      padding: var(--space-sm) var(--space-md);
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-sm);
+      font-family: var(--font-body);
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: var(--on-surface-variant);
+      cursor: pointer;
+      transition: color var(--dur-micro) var(--ease-out), background-color var(--dur-micro) var(--ease-out), border-color var(--dur-micro) var(--ease-out);
+    }
+    .nav-tab:hover {
+      color: var(--brand-black);
+      background: var(--surface-container-low);
+    }
+    .nav-tab[aria-selected="true"] {
+      color: var(--brand-black);
+      background: var(--surface-container-low);
+      border-bottom: 3px solid var(--brand-green);
+      font-weight: 700;
+    }
+    .nav-tab-count {
+      font-family: var(--font-label);
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      background: var(--primary-container);
+      color: var(--on-primary-container);
+      border-radius: var(--rounded);
+    }
+
+    /* View Panels (Only Overview shown initially) */
+    .tab-panel {
+      display: none;
+      width: 100%;
+    }
+    .tab-panel.is-active {
+      display: block;
+      animation: panelFade var(--dur-short) var(--ease-out);
+    }
+    @keyframes panelFade {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* =====================================================================
+       OVERVIEW HERO — Full-bleed crisp Colombo Skyline (ZERO dark overlay)
+       ===================================================================== */
+    .hero-fullbleed {
+      position: relative;
+      width: 100%;
+      min-height: 460px;
+      display: grid;
+      grid-template-columns: minmax(320px, 560px) minmax(0, 1fr);
+      align-items: center;
+      overflow: hidden;
+      border-bottom: 4px solid var(--brand-green);
+      background: var(--surface-container-low);
+    }
+    .hero-skyline-img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      z-index: 0;
+      /* Explicitly NO dark overlay, NO opacity reduction, NO dark gradient filter */
+      filter: none;
+      opacity: 1;
+    }
+    .hero-card {
+      position: relative;
+      z-index: 1;
+      margin: var(--space-xl) clamp(1rem, 2.5vw, 2.5rem);
+      background: var(--background);
+      padding: var(--space-xl);
+      border-left: 6px solid var(--brand-green);
+      border-top: 1px solid var(--outline-variant);
+      border-right: 1px solid var(--outline-variant);
+      border-bottom: 3px solid var(--primary);
+      box-shadow: var(--shadow-2);
+    }
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-sm);
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--primary-text);
+      margin-bottom: var(--space-sm);
+    }
+    .hero-title {
+      margin: 0 0 var(--space-md) 0;
+      font-family: var(--font-headline);
+      font-size: var(--display-size);
+      font-weight: 300;
+      line-height: 1.12;
+      letter-spacing: -0.025em;
+      color: var(--brand-black);
+    }
+    .hero-title strong {
+      font-weight: 800;
+    }
+    .hero-lede {
+      margin: 0 0 var(--space-lg) 0;
+      color: var(--on-surface-variant);
+      max-width: 58ch;
+    }
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-md);
+      align-items: center;
+    }
+
+    /* Buttons */
+    .btn {
+      appearance: none;
+      border: 0;
+      border-radius: var(--rounded);
+      min-height: 44px;
+      padding: var(--space-sm) var(--space-lg);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-sm);
+      font-family: var(--font-body);
+      font-size: 0.9375rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background-color var(--dur-micro) var(--ease-out), transform var(--dur-micro) var(--ease-out), box-shadow var(--dur-micro) var(--ease-out);
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn-brand-green {
+      background: var(--brand-green);
+      color: var(--brand-black);
+      border: 2px solid var(--brand-black);
+    }
+    .btn-brand-green:hover {
+      background: var(--brand-green-hover);
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: var(--on-primary);
+    }
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+    .btn-dark {
+      background: var(--brand-black);
+      color: var(--on-primary);
+    }
+    .btn-dark:hover {
+      background: var(--on-surface-variant);
+    }
+    .btn-outline {
+      background: var(--background);
+      color: var(--brand-black);
+      border: 1px solid var(--brand-black);
+    }
+    .btn-outline:hover {
+      background: var(--surface-container-low);
+    }
+    .btn-sm {
+      min-height: 36px;
+      padding: var(--space-xs) var(--space-md);
+      font-size: 0.8125rem;
+    }
+
+    /* Typography & Carbon Layer Helpers */
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      gap: var(--space-md);
+      border-bottom: 2px solid var(--brand-black);
+      padding-bottom: var(--space-sm);
+      margin-bottom: var(--space-lg);
+    }
+    .section-title {
+      margin: 0;
+      font-family: var(--font-headline);
+      font-size: var(--headline-size);
+      font-weight: 300;
+      line-height: 1.2;
+      color: var(--brand-black);
+    }
+    .section-title strong {
+      font-weight: 700;
+    }
+    .mono-label {
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--on-surface-variant);
+      display: block;
+    }
+
+    /* Overview KPI Strip */
+    .kpi-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+      gap: var(--space-md);
+      margin-bottom: var(--space-xl);
+    }
+    .kpi-tile {
+      background: var(--surface-container-low);
+      padding: var(--space-lg);
+      border-bottom: var(--indicator);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+    }
+    .kpi-tile.green-accent {
+      border-bottom: 3px solid var(--brand-green);
+    }
+    .kpi-tile.black-accent {
+      border-bottom: 3px solid var(--brand-black);
+    }
+    .kpi-value {
+      font-family: var(--font-label);
+      font-size: clamp(1.75rem, 1.4rem + 1vw, 2.35rem);
+      font-weight: 500;
+      color: var(--brand-black);
+      line-height: 1.1;
+    }
+    .kpi-caption {
+      font-size: 0.875rem;
+      color: var(--on-surface-variant);
+    }
+
+    /* Problem, Goal & Outcomes Grid */
+    .pgo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+      gap: var(--space-lg);
+      margin-bottom: var(--space-xl);
+    }
+    .pgo-card {
+      background: var(--surface-container-low);
+      padding: var(--space-xl);
+      border-top: 4px solid var(--brand-black);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+    }
+    .pgo-card.goal-card {
+      border-top-color: var(--primary);
+    }
+    .pgo-card.outcomes-card {
+      border-top-color: var(--brand-green);
+    }
+    .pgo-card h3 {
+      margin: 0;
+      font-size: var(--subhead-size);
+      font-weight: 700;
+      color: var(--brand-black);
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    .pgo-card p {
+      margin: 0;
+      color: var(--on-surface);
+      max-width: 65ch;
+    }
+    .pgo-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+    }
+    .pgo-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-sm);
+      padding-top: var(--space-sm);
+      border-top: var(--rule);
+      font-size: 0.9375rem;
+    }
+
+    /* Lifecycle Overview Strip */
+    .lifecycle-preview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+      gap: var(--space-md);
+      margin-bottom: var(--space-xl);
+    }
+    .lifecycle-step-card {
+      background: var(--background);
+      border: var(--rule);
+      border-left: 4px solid var(--primary);
+      padding: var(--space-lg);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+    }
+    .lifecycle-step-card.is-final {
+      border-left-color: var(--brand-green);
+    }
+    .step-num {
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      font-weight: 600;
+      color: var(--primary-text);
+    }
+    .lifecycle-step-card.is-final .step-num {
+      color: var(--brand-green-text);
+    }
+
+    /* Quick Portal Cards */
+    .portal-launch-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+      gap: var(--space-lg);
+    }
+    .portal-card {
+      background: var(--surface-container-low);
+      padding: var(--space-lg);
+      border: var(--rule);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: var(--space-md);
+    }
+    .portal-card h4 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--brand-black);
+    }
+    .portal-card p {
+      margin: 0;
+      color: var(--on-surface-variant);
+      font-size: 0.9375rem;
+    }
+
+    /* =====================================================================
+       REPORT ISSUE FORM
+       ===================================================================== */
+    .report-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
+      gap: var(--space-xl);
+      align-items: start;
+    }
+    .form-stack {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-lg);
+    }
+    .form-section {
+      background: var(--surface-container-low);
+      padding: var(--space-xl);
+      border-top: 3px solid var(--brand-black);
+    }
+    .form-section.location-section {
+      border-top-color: var(--primary);
+    }
+    .form-section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-lg);
+      padding-bottom: var(--space-sm);
+      border-bottom: var(--rule);
+    }
+    .form-section-title {
+      margin: 0;
+      font-size: var(--subhead-size);
+      font-weight: 700;
+      color: var(--brand-black);
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    .step-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      background: var(--brand-black);
+      color: var(--on-primary);
+      font-family: var(--font-label);
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+      gap: var(--space-md);
+    }
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+      margin-bottom: var(--space-md);
+    }
+    .field-group:last-child {
+      margin-bottom: 0;
+    }
+    .field-label {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: var(--brand-black);
+    }
+    .field-required {
+      color: var(--error);
+    }
+    .field-hint {
+      font-size: 0.8125rem;
+      color: var(--on-surface-variant);
+    }
+    .field-input,
+    .field-select,
+    .field-textarea {
+      width: 100%;
+      background: var(--background);
+      color: var(--on-surface);
+      border: 1px solid var(--outline-variant);
+      border-bottom: 2px solid var(--outline);
+      border-radius: var(--rounded);
+      padding: 0.625rem var(--space-md);
+      min-height: 44px;
+      transition: border-color var(--dur-micro) var(--ease-out), box-shadow var(--dur-micro) var(--ease-out);
+    }
+    .field-select {
+      padding-right: 2.25rem;
+    }
+    .field-textarea {
+      min-height: 110px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+    .field-input:focus,
+    .field-select:focus,
+    .field-textarea:focus {
+      border-bottom-color: var(--primary);
+    }
+    .field-input[aria-invalid="true"],
+    .field-select[aria-invalid="true"],
+    .field-textarea[aria-invalid="true"] {
+      border-bottom-color: var(--error);
+      background: var(--error-bg);
+    }
+
+    /* Photo Dropzone */
+    .photo-dropzone {
+      background: var(--background);
+      border: 2px dashed var(--outline);
+      padding: var(--space-lg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: var(--space-sm);
+      cursor: pointer;
+      min-height: 140px;
+      transition: border-color var(--dur-micro) var(--ease-out), background-color var(--dur-micro) var(--ease-out);
+    }
+    .photo-dropzone:hover,
+    .photo-dropzone.is-dragover {
+      border-color: var(--primary);
+      background: var(--primary-container);
+    }
+    .photo-preview-box {
+      display: none;
+      margin-top: var(--space-md);
+      background: var(--background);
+      border: var(--rule);
+      padding: var(--space-md);
+      align-items: center;
+      gap: var(--space-md);
+      flex-wrap: wrap;
+    }
+    .photo-preview-box.has-photo {
+      display: flex;
+    }
+    .photo-thumb {
+      width: 112px;
+      height: 84px;
+      object-fit: cover;
+      border: var(--rule);
+      background: var(--surface-container);
+    }
+
+    /* Anonymous Toggle Card */
+    .anon-toggle-row {
+      background: var(--background);
+      border: 1px solid var(--outline-variant);
+      border-left: 4px solid var(--brand-green);
+      padding: var(--space-md);
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-md);
+      cursor: pointer;
+      margin-bottom: var(--space-md);
+    }
+    .anon-checkbox {
+      width: 22px;
+      height: 22px;
+      margin-top: 2px;
+      accent-color: var(--brand-green);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .identity-fields-wrap.is-hidden {
+      display: none;
+    }
+
+    /* GPS Map Container */
+    .gps-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-sm);
+    }
+    .gps-coords-readout {
+      font-family: var(--font-label);
+      font-size: 0.8125rem;
+      background: var(--brand-black);
+      color: var(--on-primary);
+      padding: var(--space-xs) var(--space-md);
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    .gps-map-box {
+      width: 100%;
+      height: 360px;
+      min-height: 360px;
+      border: 1px solid var(--outline);
+      background-color: var(--map-ocean);
+      background-image:
+        linear-gradient(var(--map-grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--map-grid-line) 1px, transparent 1px);
+      background-size: 32px 32px;
+      position: relative;
+      z-index: 1;
+    }
+    .leaflet-container {
+      background-color: var(--map-ocean);
+      background-image:
+        linear-gradient(var(--map-grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--map-grid-line) 1px, transparent 1px);
+      background-size: 32px 32px;
+      font-family: var(--font-body);
+    }
+
+    /* Submit Bar directly under Location & GPS Pinpoint section */
+    .submit-action-bar {
+      background: var(--background);
+      border: 2px solid var(--brand-black);
+      border-left: 6px solid var(--brand-green);
+      padding: var(--space-lg);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: var(--space-md);
+    }
+    .form-feedback-banner {
+      display: none;
+      padding: var(--space-md);
+      border-left: 4px solid var(--error);
+      background: var(--error-bg);
+      color: var(--brand-black);
+      font-weight: 600;
+    }
+    .form-feedback-banner.is-visible {
+      display: block;
+    }
+
+    /* Submission Confirmation Card */
+    .confirmation-panel {
+      display: none;
+      background: var(--positive-bg);
+      border: 2px solid var(--brand-green);
+      border-left: 8px solid var(--brand-green);
+      padding: var(--space-xl);
+      margin-top: var(--space-lg);
+    }
+    .confirmation-panel.is-visible {
+      display: block;
+      animation: panelFade var(--dur-short) var(--ease-out);
+    }
+    .ref-code-display {
+      font-family: var(--font-label);
+      font-size: clamp(1.4rem, 1.1rem + 1vw, 2rem);
+      font-weight: 600;
+      background: var(--background);
+      border: 2px solid var(--brand-black);
+      color: var(--brand-black);
+      padding: var(--space-sm) var(--space-lg);
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-md);
+      margin: var(--space-sm) 0 var(--space-md) 0;
+    }
+
+    /* Sidebar Guidance */
+    .report-sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+    }
+    .sidebar-card {
+      background: var(--surface-container-low);
+      padding: var(--space-lg);
+      border-left: 4px solid var(--primary);
+    }
+    .sidebar-card.green {
+      border-left-color: var(--brand-green);
+    }
+    .sidebar-card h4 {
+      margin: 0 0 var(--space-sm) 0;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--brand-black);
+    }
+
+    /* =====================================================================
+       COMPLAINT STATUS & LIFECYCLE TRACKER
+       ===================================================================== */
+    .tracker-search-panel {
+      background: var(--surface-container-low);
+      padding: var(--space-xl);
+      border-top: 3px solid var(--primary);
+      margin-bottom: var(--space-xl);
+    }
+    .tracker-search-row {
+      display: flex;
+      gap: var(--space-md);
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+    .tracker-search-field {
+      flex: 1 1 280px;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+    }
+    .sample-chips-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-sm);
+      margin-top: var(--space-md);
+    }
+    .ref-chip {
+      appearance: none;
+      background: var(--background);
+      border: 1px solid var(--outline-variant);
+      padding: 0.35rem 0.75rem;
+      min-height: 36px;
+      font-family: var(--font-label);
+      font-size: 0.8125rem;
+      color: var(--brand-black);
+      cursor: pointer;
+      transition: background-color var(--dur-micro) var(--ease-out), border-color var(--dur-micro) var(--ease-out);
+    }
+    .ref-chip:hover,
+    .ref-chip.is-selected {
+      background: var(--primary-container);
+      border-color: var(--primary);
+      color: var(--on-primary-container);
+      font-weight: 600;
+    }
+
+    /* Visual 4-Stage Stepper */
+    .stepper-card {
+      background: var(--background);
+      border: 1px solid var(--outline-variant);
+      padding: var(--space-xl);
+      margin-bottom: var(--space-lg);
+    }
+    .stepper-track {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: var(--space-md);
+      margin: var(--space-lg) 0;
+      position: relative;
+    }
+    .stage-node {
+      background: var(--surface-container-low);
+      border-top: 4px solid var(--outline-variant);
+      padding: var(--space-md);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+    }
+    .stage-node.is-complete {
+      background: var(--positive-bg);
+      border-top-color: var(--brand-green);
+    }
+    .stage-node.is-current {
+      background: var(--primary-container);
+      border-top-color: var(--primary);
+    }
+    .stage-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      font-weight: 600;
+    }
+    .stage-title {
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--brand-black);
+    }
+    .stage-meta {
+      font-size: 0.8125rem;
+      color: var(--on-surface-variant);
+    }
+
+    .tracker-detail-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+      gap: var(--space-lg);
+    }
+    .detail-panel {
+      background: var(--surface-container-low);
+      padding: var(--space-lg);
+      border-left: 4px solid var(--brand-black);
+    }
+    .detail-panel.notify-panel {
+      border-left-color: var(--brand-green);
+    }
+    .summary-dl {
+      margin: 0;
+      display: grid;
+      grid-template-columns: 160px minmax(0, 1fr);
+      gap: var(--space-sm) var(--space-md);
+    }
+    .summary-dl dt {
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      text-transform: uppercase;
+      color: var(--on-surface-variant);
+      padding-top: 2px;
+    }
+    .summary-dl dd {
+      margin: 0;
+      font-weight: 600;
+      color: var(--brand-black);
+      word-break: break-word;
+    }
+    .notify-log {
+      list-style: none;
+      margin: var(--space-md) 0 0 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+    }
+    .notify-log li {
+      background: var(--background);
+      padding: var(--space-sm) var(--space-md);
+      border-left: 3px solid var(--primary);
+      font-size: 0.875rem;
+    }
+
+    /* Status Badges */
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: var(--rounded-full);
+      font-family: var(--font-label);
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .status-received { background: var(--surface-container-high); color: var(--brand-black); }
+    .status-assigned { background: var(--primary-container); color: var(--on-primary-container); }
+    .status-in-progress { background: var(--warning-bg); color: var(--warning); }
+    .status-resolved { background: var(--positive-bg); color: var(--positive); }
+
+    /* =====================================================================
+       ADMIN DASHBOARD
+       ===================================================================== */
+    .admin-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: var(--space-md);
+      background: var(--surface-container-low);
+      padding: var(--space-md) var(--space-lg);
+      border-left: 4px solid var(--primary);
+      margin-bottom: var(--space-lg);
+    }
+    .admin-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-md);
+      align-items: flex-end;
+      flex: 1 1 auto;
+    }
+    .admin-filter-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 170px;
+      flex: 1 1 180px;
+    }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr));
+      gap: var(--space-lg);
+      margin-bottom: var(--space-xl);
+    }
+    .chart-card {
+      background: var(--surface-container-low);
+      padding: var(--space-lg);
+      border-top: 3px solid var(--brand-black);
+    }
+    .chart-card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-md);
+    }
+    .chart-card-head h3 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--brand-black);
+    }
+    .chart-canvas-wrap {
+      position: relative;
+      width: 100%;
+      height: 270px;
+      min-height: 270px;
+    }
+
+    /* Admin Data Table */
+    .table-card {
+      background: var(--background);
+      border: 1px solid var(--outline-variant);
+      overflow-x: auto;
+    }
+    .admin-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.875rem;
+    }
+    .admin-table thead th {
+      background: var(--surface-container-high);
+      color: var(--brand-black);
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 0.75rem var(--space-md);
+      border-bottom: 2px solid var(--brand-black);
+      white-space: nowrap;
+    }
+    .admin-table tbody tr {
+      border-bottom: var(--rule);
+    }
+    .admin-table tbody tr:nth-child(even) {
+      background: var(--surface-container-low);
+    }
+    .admin-table tbody tr:hover {
+      background: var(--primary-container);
+    }
+    .admin-table td {
+      padding: 0.75rem var(--space-md);
+      vertical-align: middle;
+    }
+    .table-select {
+      min-height: 36px;
+      padding: 4px 8px;
+      border: 1px solid var(--outline);
+      background: var(--background);
+      color: var(--brand-black);
+      border-radius: var(--rounded);
+      font-size: 0.8125rem;
+    }
+    .mono-code {
+      font-family: var(--font-label);
+      font-weight: 600;
+      color: var(--brand-black);
+    }
+    .anon-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-family: var(--font-label);
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      background: var(--brand-black);
+      color: var(--on-primary);
+    }
+
+    /* Footer */
+    .site-footer {
+      margin-top: auto;
+      width: 100%;
+      background: var(--brand-black);
+      color: var(--on-primary);
+      border-top: 4px solid var(--brand-green);
+      padding: var(--space-lg) clamp(1rem, 2.5vw, 2.5rem);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: var(--space-md);
+      font-size: 0.875rem;
+    }
+    .footer-meta {
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      color: var(--surface-container-high);
+    }
+
+    /* Responsive Breakpoints */
+    @media (max-width: 960px) {
+      .hero-fullbleed {
+        grid-template-columns: 1fr;
+        min-height: auto;
+      }
+      .hero-skyline-img {
+        position: relative;
+        height: 260px;
+        min-height: 260px;
+      }
+      .hero-card {
+        margin: 0;
+        border-left: 6px solid var(--brand-green);
+        border-right: 0;
+        border-top: 0;
+      }
+      .report-layout,
+      .tracker-detail-grid {
+        grid-template-columns: 1fr;
+      }
+      .stepper-track {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 640px) {
+      .page-grid { grid-template-columns: 1fr; }
+      .header-inner { padding: var(--space-sm) var(--space-md); }
+      .fluid-container { padding: var(--space-md); }
+      .stepper-track { grid-template-columns: 1fr; }
+      .summary-dl { grid-template-columns: 1fr; }
+      .nav-tab { flex: 1 1 auto; justify-content: center; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Top Institutional Utility Strip -->
+    <div class="top-utility-bar">
+      <div class="utility-badge">
+        <span class="utility-dot" aria-hidden="true"></span>
+        <span>Clean Sri Lanka National Initiative — Civic Accountability Portal</span>
+      </div>
+      <div>9 Provinces &middot; 25 Districts &middot; Direct Municipal Dispatch</div>
+    </div>
+
+    <!-- Header & Primary Tab Navigation -->
+    <header class="site-header">
+      <div class="header-inner">
+        <div class="brand-lockup">
+          <img src="[SOURCE_IMAGE_1]" alt="Clean Sri Lanka Logo" class="brand-logo">
+          <div class="brand-text">
+            <h1 class="brand-title">Clean Sri Lanka</h1>
+            <span class="brand-subtitle">Digital Complaint Management System</span>
+          </div>
+        </div>
+
+        <nav class="main-nav" role="tablist" aria-label="Primary Sections">
+          <button type="button" class="nav-tab" id="tab-overview" role="tab" aria-selected="true" aria-controls="view-overview" onclick="switchTab('overview')">
+            <i data-lucide="layout-grid" aria-hidden="true"></i>
+            <span>Overview</span>
+          </button>
+          <button type="button" class="nav-tab" id="tab-report" role="tab" aria-selected="false" aria-controls="view-report" onclick="switchTab('report')">
+            <i data-lucide="file-plus-2" aria-hidden="true"></i>
+            <span>Report Issue</span>
+          </button>
+          <button type="button" class="nav-tab" id="tab-track" role="tab" aria-selected="false" aria-controls="view-track" onclick="switchTab('track')">
+            <i data-lucide="search-check" aria-hidden="true"></i>
+            <span>Track Complaint</span>
+          </button>
+          <button type="button" class="nav-tab" id="tab-admin" role="tab" aria-selected="false" aria-controls="view-admin" onclick="switchTab('admin')">
+            <i data-lucide="shield-check" aria-hidden="true"></i>
+            <span>Admin Dashboard</span>
+            <span class="nav-tab-count" id="nav-active-count">0</span>
+          </button>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page-grid">
+      <!-- ===================================================================
+           TAB 1: OVERVIEW (Default visible page on initial load)
+           =================================================================== -->
+      <section id="view-overview" class="tab-panel is-active" role="tabpanel" aria-labelledby="tab-overview">
+        <!-- Full-bleed Colombo City Skyline Hero (NO dark overlay / NO mask / NO dark gradient) -->
+        <div class="hero-fullbleed">
+          <img src="[SOURCE_IMAGE_2]" alt="Colombo city skyline across Beira Lake in clear daylight" class="hero-skyline-img">
+          <div class="hero-card">
+            <span class="hero-eyebrow">
+              <i data-lucide="map-pin" aria-hidden="true"></i>
+              <span>Island-Wide Civic Maintenance &amp; Environmental Stewardship</span>
+            </span>
+            <h2 class="hero-title">Cleaner streets, <strong>accountable councils</strong> across Sri Lanka.</h2>
+            <p class="hero-lede">
+              Report municipal waste, blocked drains, damaged roads, or public hazards with exact GPS pinpoints.
+              Track every case from submission to verified field resolution—with optional anonymous protection.
+            </p>
+            <div class="hero-actions">
+              <button type="button" class="btn btn-brand-green" onclick="switchTab('report')">
+                <i data-lucide="plus-circle" aria-hidden="true"></i>
+                <span>Report an Issue</span>
+              </button>
+              <button type="button" class="btn btn-primary" onclick="switchTab('track')">
+                <i data-lucide="radar" aria-hidden="true"></i>
+                <span>Track Complaint Status</span>
+              </button>
+              <button type="button" class="btn btn-outline" onclick="switchTab('admin')">
+                <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
+                <span>Open Admin Console</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="fluid-container">
+          <!-- Live Operational Snapshot -->
+          <div class="section-head">
+            <div>
+              <span class="mono-label">Live System Telemetry</span>
+              <h2 class="section-title">National <strong>Complaint Operations</strong> Snapshot</h2>
+            </div>
+            <span class="mono-label" id="overview-updated-label">Updated Nov 24, 2026</span>
+          </div>
+
+          <div class="kpi-strip">
+            <div class="kpi-tile black-accent">
+              <span class="mono-label">Total Logged Cases</span>
+              <span class="kpi-value" id="ov-total-count">0</span>
+              <span class="kpi-caption">Across Municipal &amp; Urban Councils</span>
+            </div>
+            <div class="kpi-tile">
+              <span class="mono-label">Active Field Queue</span>
+              <span class="kpi-value" id="ov-active-count">0</span>
+              <span class="kpi-caption">Received, Assigned &amp; In Progress</span>
+            </div>
+            <div class="kpi-tile green-accent">
+              <span class="mono-label">Verified Resolved</span>
+              <span class="kpi-value" id="ov-resolved-count">0</span>
+              <span class="kpi-caption" id="ov-resolution-rate">0% closure rate</span>
+            </div>
+            <div class="kpi-tile">
+              <span class="mono-label">Anonymous Reports</span>
+              <span class="kpi-value" id="ov-anon-count">0</span>
+              <span class="kpi-caption">Identity-protected submissions</span>
+            </div>
+          </div>
+
+          <!-- Problem, Goal & Outcomes Overview Section -->
+          <div class="section-head">
+            <div>
+              <span class="mono-label">Program Architecture</span>
+              <h2 class="section-title">Problem, <strong>Goal</strong> &amp; Expected Outcomes</h2>
+            </div>
+          </div>
+
+          <div class="pgo-grid">
+            <article class="pgo-card">
+              <h3>
+                <i data-lucide="alert-triangle" aria-hidden="true"></i>
+                <span>The Problem</span>
+              </h3>
+              <p>
+                Civic infrastructure and environmental maintenance complaints across Sri Lanka often stall between
+                disconnected hotlines, paper logbooks, and overlapping local council boundaries.
+              </p>
+              <ul class="pgo-list">
+                <li><strong>No Location Precision:</strong> Verbal street descriptions delay municipal field crew dispatch.</li>
+                <li><strong>Zero Citizen Visibility:</strong> Residents rarely receive a reference code or know which officer owns the task.</li>
+                <li><strong>Reporting Hesitation:</strong> Citizens fear retaliation when reporting illegal dumping without identity protection.</li>
+              </ul>
+            </article>
+
+            <article class="pgo-card goal-card">
+              <h3>
+                <i data-lucide="target" aria-hidden="true"></i>
+                <span>The Goal</span>
+              </h3>
+              <p>
+                Deliver a single, transparent digital intake and dispatch system under Clean Sri Lanka—linking every
+                citizen report directly to the responsible Province, District, and Municipal Council.
+              </p>
+              <ul class="pgo-list">
+                <li><strong>Structured Intake:</strong> Photo evidence, standardized categories, and interactive GPS pinpoints.</li>
+                <li><strong>Guaranteed Reference IDs:</strong> Every submission generates an immutable <span class="mono-code">CSL-2026-XXXX</span> code.</li>
+                <li><strong>End-to-End Accountability:</strong> Four auditable lifecycle stages from intake through council resolution.</li>
+              </ul>
+            </article>
+
+            <article class="pgo-card outcomes-card">
+              <h3>
+                <i data-lucide="check-circle-2" aria-hidden="true"></i>
+                <span>Key Outcomes</span>
+              </h3>
+              <p>
+                Standardized triage and real-time analytics empower municipal commissioners and engineering units to
+                resolve high-impact civic hazards faster and allocate resources where demand peaks.
+              </p>
+              <ul class="pgo-list">
+                <li><strong>Faster Dispatch:</strong> Exact coordinates route crews directly to blocked drains, waste dumps, and hazards.</li>
+                <li><strong>Protected Whistleblowing:</strong> One-click anonymous toggle keeps citizen identity confidential while preserving tracking.</li>
+                <li><strong>Data-Driven Governance:</strong> Live council metrics highlight bottlenecks by province and maintenance category.</li>
+              </ul>
+            </article>
+          </div>
+
+          <!-- 4-Stage Complaint Lifecycle Model -->
+          <div class="section-head">
+            <div>
+              <span class="mono-label">Transparent Workflow</span>
+              <h2 class="section-title">Four-Stage <strong>Resolution Lifecycle</strong></h2>
+            </div>
+          </div>
+
+          <div class="lifecycle-preview-grid">
+            <div class="lifecycle-step-card">
+              <span class="step-num">STAGE 01</span>
+              <strong>Received</strong>
+              <span class="kpi-caption">Complaint validated, GPS coordinates locked, and unique reference number issued.</span>
+            </div>
+            <div class="lifecycle-step-card">
+              <span class="step-num">STAGE 02</span>
+              <strong>Assigned</strong>
+              <span class="kpi-caption">Municipal Council supervisor assigns a named Field Officer or engineering unit.</span>
+            </div>
+            <div class="lifecycle-step-card">
+              <span class="step-num">STAGE 03</span>
+              <strong>In Progress</strong>
+              <span class="kpi-caption">Crew dispatched on-site; cleanup, repair, or hazard mitigation actively underway.</span>
+            </div>
+            <div class="lifecycle-step-card is-final">
+              <span class="step-num">STAGE 04</span>
+              <strong>Resolved</strong>
+              <span class="kpi-caption">Work verified complete, closure logged, and citizen notification status updated.</span>
+            </div>
+          </div>
+
+          <!-- Portal Navigation Cards -->
+          <div class="portal-launch-grid">
+            <div class="portal-card">
+              <div>
+                <span class="mono-label">Citizen Action</span>
+                <h4>Submit a New Civic Complaint</h4>
+                <p>Upload issue photos, choose anonymous or identified reporting, and pinpoint the location on the Sri Lanka map.</p>
+              </div>
+              <div>
+                <button type="button" class="btn btn-brand-green" onclick="switchTab('report')">Go to Report Issue</button>
+              </div>
+            </div>
+            <div class="portal-card">
+              <div>
+                <span class="mono-label">Public Verification</span>
+                <h4>Track Existing Reference ID</h4>
+                <p>Enter your <span class="mono-code">CSL-2026-XXXX</span> reference code to inspect live stage progress and notification alerts.</p>
+              </div>
+              <div>
+                <button type="button" class="btn btn-primary" onclick="switchTab('track')">Go to Track Complaint</button>
+              </div>
+            </div>
+            <div class="portal-card">
+              <div>
+                <span class="mono-label">Council Operations</span>
+                <h4>Manage &amp; Dispatch Complaints</h4>
+                <p>Filter submissions by province or status, assign municipal field officers, update stages, and review analytics.</p>
+              </div>
+              <div>
+                <button type="button" class="btn btn-dark" onclick="switchTab('admin')">Go to Admin Dashboard</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================================
+           TAB 2: REPORT ISSUE
+           =================================================================== -->
+      <section id="view-report" class="tab-panel" role="tabpanel" aria-labelledby="tab-report">
+        <div class="fluid-container">
+          <div class="section-head">
+            <div>
+              <span class="mono-label">Citizen Intake Form</span>
+              <h2 class="section-title">Report a <strong>Civic or Environmental Issue</strong></h2>
+            </div>
+            <span class="mono-label">All fields marked * are required</span>
+          </div>
+
+          <div class="report-layout">
+            <form id="complaint-form" class="form-stack" onsubmit="handleComplaintSubmit(event)" novalidate>
+              <!-- Step 1: Photo Upload, Title, Category & Description -->
+              <div class="form-section">
+                <div class="form-section-header">
+                  <h3 class="form-section-title">
+                    <span class="step-badge">01</span>
+                    <span>Issue Evidence &amp; Description</span>
+                  </h3>
+                  <span class="mono-label">Photo + Classification</span>
+                </div>
+
+                <div class="field-group">
+                  <label class="field-label" for="issue-photo-input">Photo Upload of Issue</label>
+                  <span class="field-hint">Attach a clear photo of the waste pile, damaged drain, road hazard, or streetlight (JPG, PNG, WebP).</span>
+                  <label class="photo-dropzone" id="photo-dropzone" for="issue-photo-input">
+                    <i data-lucide="camera" aria-hidden="true"></i>
+                    <strong>Click to choose a photo or drag &amp; drop here</strong>
+                    <span class="field-hint">Client-side preview enabled &middot; Max 10 MB</span>
+                  </label>
+                  <input type="file" id="issue-photo-input" accept="image/*" style="position:absolute; width:1px; height:1px; opacity:0; overflow:hidden;" onchange="handlePhotoSelected(event)">
+                  <div class="photo-preview-box" id="photo-preview-box">
+                    <img id="photo-preview-img" src="" alt="Uploaded issue preview" class="photo-thumb">
+                    <div style="flex:1 1 180px;">
+                      <div class="mono-code" id="photo-file-name">evidence.jpg</div>
+                      <div class="field-hint" id="photo-file-size">Ready for attachment</div>
+                    </div>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="clearSelectedPhoto()">Remove Photo</button>
+                  </div>
+                </div>
+
+                <div class="field-grid">
+                  <div class="field-group">
+                    <label class="field-label" for="issue-title">Issue Title <span class="field-required">*</span></label>
+                    <input type="text" id="issue-title" class="field-input" placeholder="e.g., Overflowing waste bins at Pettah bus stand" required>
+                  </div>
+
+                  <div class="field-group">
+                    <label class="field-label" for="issue-category">Maintenance Category <span class="field-required">*</span></label>
+                    <select id="issue-category" class="field-select" required>
+                      <option value="">Select category…</option>
+                      <option value="Illegal Dumping &amp; Solid Waste">Illegal Dumping &amp; Solid Waste</option>
+                      <option value="Blocked Drainage &amp; Flooding">Blocked Drainage &amp; Flooding</option>
+                      <option value="Streetlight &amp; Electrical Hazard">Streetlight &amp; Electrical Hazard</option>
+                      <option value="Road &amp; Pavement Damage">Road &amp; Pavement Damage</option>
+                      <option value="Public Park &amp; Beach Pollution">Public Park &amp; Beach Pollution</option>
+                      <option value="Water Leak &amp; Sanitation">Water Leak &amp; Sanitation</option>
+                      <option value="Fallen Tree &amp; Obstruction">Fallen Tree &amp; Obstruction</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="field-group">
+                  <label class="field-label" for="issue-description">Maintenance Description <span class="field-required">*</span></label>
+                  <textarea id="issue-description" class="field-textarea" placeholder="Describe the severity, hazard to pedestrians or traffic, and how long the issue has persisted…" oninput="updateDescriptionCounter()" required></textarea>
+                  <span class="field-hint" id="desc-char-hint">0 characters — please include at least 15 characters for council triage.</span>
+                </div>
+              </div>
+
+              <!-- Step 2: Identity & Anonymous Submission Toggle -->
+              <div class="form-section">
+                <div class="form-section-header">
+                  <h3 class="form-section-title">
+                    <span class="step-badge">02</span>
+                    <span>Identity &amp; Notification Preference</span>
+                  </h3>
+                  <span class="mono-label">Privacy Protected</span>
+                </div>
+
+                <label class="anon-toggle-row" for="hide-identity-toggle">
+                  <input type="checkbox" id="hide-identity-toggle" class="anon-checkbox" onchange="toggleAnonymousIdentity()">
+                  <div>
+                    <strong>Hide my identity (Submit anonymously)</strong>
+                    <div class="field-hint">
+                      Your personal name, phone number, and email will be excluded from the complaint record. You can still track progress anytime using your generated Reference Number.
+                    </div>
+                  </div>
+                </label>
+
+                <div class="identity-fields-wrap" id="identity-fields-wrap">
+                  <div class="field-grid">
+                    <div class="field-group">
+                      <label class="field-label" for="reporter-name">Full Name</label>
+                      <input type="text" id="reporter-name" class="field-input" placeholder="e.g., Kasun Wickramasinghe">
+                    </div>
+                    <div class="field-group">
+                      <label class="field-label" for="reporter-phone">Mobile Number (SMS Alerts)</label>
+                      <input type="tel" id="reporter-phone" class="field-input" placeholder="e.g., +94 77 412 8890">
+                    </div>
+                    <div class="field-group">
+                      <label class="field-label" for="reporter-email">Email Address (Optional)</label>
+                      <input type="email" id="reporter-email" class="field-input" placeholder="e.g., citizen@example.com">
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Step 3: Location Details & GPS Pinpoint Map -->
+              <div class="form-section location-section" id="location-gps-section">
+                <div class="form-section-header">
+                  <h3 class="form-section-title">
+                    <span class="step-badge">03</span>
+                    <span>Location &amp; GPS Pinpoint</span>
+                  </h3>
+                  <span class="mono-label">Jurisdiction + Vector Map</span>
+                </div>
+
+                <div class="field-grid">
+                  <div class="field-group">
+                    <label class="field-label" for="loc-province">Province <span class="field-required">*</span></label>
+                    <select id="loc-province" class="field-select" onchange="handleProvinceChange()" required>
+                      <option value="">Select Province…</option>
+                    </select>
+                  </div>
+
+                  <div class="field-group">
+                    <label class="field-label" for="loc-district">District <span class="field-required">*</span></label>
+                    <select id="loc-district" class="field-select" onchange="handleDistrictChange()" required>
+                      <option value="">Select District…</option>
+                    </select>
+                  </div>
+
+                  <div class="field-group">
+                    <label class="field-label" for="loc-council">Municipal / Local Council <span class="field-required">*</span></label>
+                    <select id="loc-council" class="field-select" onchange="handleCouncilChange()" required>
+                      <option value="">Select Council…</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="field-group">
+                  <label class="field-label" for="loc-street">Street Address / Nearest Landmark <span class="field-required">*</span></label>
+                  <input type="text" id="loc-street" class="field-input" placeholder="e.g., No. 42, Galle Road, opposite Town Hall junction" required>
+                </div>
+
+                <div class="field-group">
+                  <label class="field-label" for="gps-lat-input">Interactive GPS Pinpoint Map (Click map to drop pin)</label>
+                  <div class="gps-toolbar">
+                    <div class="gps-coords-readout" id="gps-coords-badge">
+                      <i data-lucide="crosshair" aria-hidden="true"></i>
+                      <span id="gps-coords-text">6.9271° N, 79.8612° E</span>
+                    </div>
+                    <div style="display:flex; gap:var(--space-sm); flex-wrap:wrap;">
+                      <button type="button" class="btn btn-outline btn-sm" onclick="snapToSelectedCouncil()">
+                        <i data-lucide="navigation" aria-hidden="true"></i>
+                        <span>Center on Council</span>
+                      </button>
+                      <button type="button" class="btn btn-primary btn-sm" onclick="detectBrowserGps()">
+                        <i data-lucide="locate-fixed" aria-hidden="true"></i>
+                        <span>Use My Current GPS</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="field-hint" id="gps-status-note">
+                    Click anywhere on the Sri Lanka coordinate map below or adjust Latitude/Longitude to lock the exact complaint location.
+                  </div>
+
+                  <div id="report-gps-map" class="gps-map-box" aria-label="Interactive Sri Lanka GPS Pinpoint Map"></div>
+
+                  <div class="field-grid" style="margin-top: var(--space-md);">
+                    <div class="field-group">
+                      <label class="field-label" for="gps-lat-input">Pinpoint Latitude (°N)</label>
+                      <input type="number" step="0.0001" min="5.8" max="9.9" id="gps-lat-input" class="field-input" value="6.9271" oninput="updatePinFromCoordInputs()">
+                    </div>
+                    <div class="field-group">
+                      <label class="field-label" for="gps-lng-input">Pinpoint Longitude (°E)</label>
+                      <input type="number" step="0.0001" min="79.5" max="82.0" id="gps-lng-input" class="field-input" value="79.8612" oninput="updatePinFromCoordInputs()">
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Inline Validation Message -->
+              <div id="report-error-banner" class="form-feedback-banner" role="alert"></div>
+
+              <!-- Submit Complaint Button placed DIRECTLY UNDER the Location & GPS Pinpoint section -->
+              <div class="submit-action-bar">
+                <div>
+                  <strong>Ready to dispatch to the selected Local Council?</strong>
+                  <div class="field-hint">A unique reference code will be generated immediately upon submission.</div>
+                </div>
+                <div style="display:flex; gap:var(--space-md); flex-wrap:wrap;">
+                  <button type="button" class="btn btn-outline" onclick="resetReportForm(this)">Clear Form</button>
+                  <button type="submit" id="submit-complaint-btn" class="btn btn-brand-green">
+                    <i data-lucide="send" aria-hidden="true"></i>
+                    <span>Submit Complaint</span>
+                  </button>
+                </div>
+              </div>
+            </form>
+
+            <!-- Right Rail Guidance -->
+            <aside class="report-sidebar">
+              <div class="sidebar-card green">
+                <h4>Instant Reference Generation</h4>
+                <p style="margin:0; font-size:0.9375rem; color:var(--on-surface-variant);">
+                  Every submitted report receives a unique <span class="mono-code">CSL-2026-XXXX</span> ID and enters the live Admin &amp; Public Tracker immediately.
+                </p>
+              </div>
+              <div class="sidebar-card">
+                <h4>Jurisdictional Routing</h4>
+                <p style="margin:0; font-size:0.9375rem; color:var(--on-surface-variant);">
+                  Selecting your Province, District, and Municipal Council automatically routes the report to the local engineering unit and centers the GPS map.
+                </p>
+              </div>
+              <div class="sidebar-card">
+                <h4>Anonymous Protection</h4>
+                <p style="margin:0; font-size:0.9375rem; color:var(--on-surface-variant);">
+                  Checking <em>Hide my identity</em> omits personal contact details from both the Admin table and Public Tracker while retaining full lifecycle status updates.
+                </p>
+              </div>
+            </aside>
+          </div>
+
+          <!-- Confirmation Card shown upon Submission -->
+          <div id="report-confirmation" class="confirmation-panel" role="status" aria-live="polite">
+            <span class="mono-label" style="color: var(--positive);">Complaint Registered Successfully</span>
+            <h3 style="margin: var(--space-xs) 0 0 0; font-size: var(--headline-size); color: var(--brand-black);">
+              Your Clean Sri Lanka Reference Number
+            </h3>
+            <div class="ref-code-display">
+              <span id="confirm-ref-number">CSL-2026-0000</span>
+              <button type="button" class="btn btn-outline btn-sm" id="copy-ref-btn" onclick="copyConfirmedRef()">Copy ID</button>
+            </div>
+            <p id="confirm-summary-text" style="margin: 0 0 var(--space-md) 0;"></p>
+            <div style="display:flex; gap:var(--space-md); flex-wrap:wrap;">
+              <button type="button" class="btn btn-primary" onclick="trackConfirmedComplaint()">
+                <i data-lucide="radar" aria-hidden="true"></i>
+                <span>Track This Complaint</span>
+              </button>
+              <button type="button" class="btn btn-outline" onclick="startAnotherReport()">
+                <span>Submit Another Issue</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================================
+           TAB 3: COMPLAINT STATUS & LIFECYCLE TRACKER
+           =================================================================== -->
+      <section id="view-track" class="tab-panel" role="tabpanel" aria-labelledby="tab-track">
+        <div class="fluid-container">
+          <div class="section-head">
+            <div>
+              <span class="mono-label">Public Verification Console</span>
+              <h2 class="section-title">Complaint Status &amp; <strong>Lifecycle Tracker</strong></h2>
+            </div>
+            <span class="mono-label">Received &rarr; Assigned &rarr; In Progress &rarr; Resolved</span>
+          </div>
+
+          <!-- Search Bar -->
+          <div class="tracker-search-panel">
+            <form class="tracker-search-row" onsubmit="handleTrackerSearch(event)">
+              <div class="tracker-search-field">
+                <label class="field-label" for="track-ref-input">Search by Reference Number</label>
+                <input type="text" id="track-ref-input" class="field-input" placeholder="Enter Reference ID (e.g., CSL-2026-1042)" required>
+              </div>
+              <button type="submit" class="btn btn-primary">
+                <i data-lucide="search" aria-hidden="true"></i>
+                <span>Track Complaint</span>
+              </button>
+            </form>
+
+            <div class="sample-chips-row">
+              <span class="mono-label" style="display:inline;">Recent / Active IDs:</span>
+              <div id="tracker-quick-chips" style="display:flex; flex-wrap:wrap; gap:var(--space-sm);"></div>
+            </div>
+            <div id="track-search-error" class="form-feedback-banner" style="margin-top: var(--space-md);" role="alert"></div>
+          </div>
+
+          <!-- Tracker Output -->
+          <div id="tracker-result-wrap">
+            <div class="stepper-card">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:var(--space-md);">
+                <div>
+                  <span class="mono-label">Tracking Record</span>
+                  <h3 style="margin: var(--space-xs) 0 0 0; font-size: var(--headline-size); color: var(--brand-black);">
+                    <span class="mono-code" id="tr-ref-id">—</span> &mdash; <span id="tr-title">Select a complaint</span>
+                  </h3>
+                </div>
+                <span id="tr-status-badge" class="status-pill status-received">Received</span>
+              </div>
+
+              <!-- 4-Stage Visual Step-by-Step Progress Tracker -->
+              <div class="stepper-track" id="tr-stepper-track">
+                <div class="stage-node" id="stage-node-0">
+                  <div class="stage-header">
+                    <span>STEP 01</span>
+                    <span id="stage-mark-0">Pending</span>
+                  </div>
+                  <div class="stage-title">Received</div>
+                  <div class="stage-meta" id="stage-meta-0">Intake logged &amp; reference issued</div>
+                </div>
+                <div class="stage-node" id="stage-node-1">
+                  <div class="stage-header">
+                    <span>STEP 02</span>
+                    <span id="stage-mark-1">Pending</span>
+                  </div>
+                  <div class="stage-title">Assigned</div>
+                  <div class="stage-meta" id="stage-meta-1">Municipal field officer assigned</div>
+                </div>
+                <div class="stage-node" id="stage-node-2">
+                  <div class="stage-header">
+                    <span>STEP 03</span>
+                    <span id="stage-mark-2">Pending</span>
+                  </div>
+                  <div class="stage-title">In Progress</div>
+                  <div class="stage-meta" id="stage-meta-2">Field team actively resolving issue</div>
+                </div>
+                <div class="stage-node" id="stage-node-3">
+                  <div class="stage-header">
+                    <span>STEP 04</span>
+                    <span id="stage-mark-3">Pending</span>
+                  </div>
+                  <div class="stage-title">Resolved</div>
+                  <div class="stage-meta" id="stage-meta-3">Verified closure &amp; completion</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="tracker-detail-grid">
+              <!-- Complaint Metadata -->
+              <div class="detail-panel">
+                <h4 style="margin: 0 0 var(--space-md) 0; color: var(--brand-black);">Complaint &amp; Jurisdiction Details</h4>
+                <dl class="summary-dl">
+                  <dt>Category</dt>
+                  <dd id="tr-category">—</dd>
+                  <dt>Jurisdiction</dt>
+                  <dd id="tr-jurisdiction">—</dd>
+                  <dt>Street / Landmark</dt>
+                  <dd id="tr-street">—</dd>
+                  <dt>GPS Coordinates</dt>
+                  <dd class="mono-code" id="tr-coords">—</dd>
+                  <dt>Reported By</dt>
+                  <dd id="tr-reporter">—</dd>
+                  <dt>Assigned Officer</dt>
+                  <dd id="tr-officer">—</dd>
+                  <dt>Submitted Date</dt>
+                  <dd class="mono-code" id="tr-date">—</dd>
+                  <dt>Description</dt>
+                  <dd id="tr-description" style="font-weight:400;">—</dd>
+                </dl>
+              </div>
+
+              <!-- Notification Status & Audit Log -->
+              <div class="detail-panel notify-panel">
+                <h4 style="margin: 0 0 var(--space-sm) 0; color: var(--brand-black);">Notification Status &amp; Activity Log</h4>
+                <div id="tr-notify-banner" style="background: var(--background); padding: var(--space-md); border: var(--rule);">
+                  <span class="mono-label">Alert Channel Status</span>
+                  <strong id="tr-notify-status" style="display:block; margin-top:4px; color: var(--brand-black);">—</strong>
+                </div>
+                <ul class="notify-log" id="tr-activity-log"></ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================================
+           TAB 4: ADMIN DASHBOARD
+           =================================================================== -->
+      <section id="view-admin" class="tab-panel" role="tabpanel" aria-labelledby="tab-admin">
+        <div class="fluid-container">
+          <div class="section-head">
+            <div>
+              <span class="mono-label">Municipal Operations &amp; Analytics</span>
+              <h2 class="section-title">Admin <strong>Complaint Management</strong> Dashboard</h2>
+            </div>
+            <div style="display:flex; gap:var(--space-sm); flex-wrap:wrap;">
+              <button type="button" class="btn btn-outline btn-sm" onclick="exportComplaintsCsv()">
+                <i data-lucide="download" aria-hidden="true"></i>
+                <span>Export CSV</span>
+              </button>
+              <button type="button" class="btn btn-outline btn-sm" onclick="resetDemoState(this)">
+                <i data-lucide="rotate-ccw" aria-hidden="true"></i>
+                <span>Reset Demo Data</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Analytical KPIs -->
+          <div class="kpi-strip">
+            <div class="kpi-tile black-accent">
+              <span class="mono-label">Total Complaints</span>
+              <span class="kpi-value" id="adm-kpi-total">0</span>
+              <span class="kpi-caption">Filtered / All-time registry</span>
+            </div>
+            <div class="kpi-tile">
+              <span class="mono-label">Pending Triage / Assigned</span>
+              <span class="kpi-value" id="adm-kpi-pending">0</span>
+              <span class="kpi-caption">Received + Assigned stages</span>
+            </div>
+            <div class="kpi-tile">
+              <span class="mono-label">Active Field Work</span>
+              <span class="kpi-value" id="adm-kpi-progress">0</span>
+              <span class="kpi-caption">Crews currently on-site</span>
+            </div>
+            <div class="kpi-tile green-accent">
+              <span class="mono-label">Resolved &amp; SLA Rate</span>
+              <span class="kpi-value" id="adm-kpi-resolved">0</span>
+              <span class="kpi-caption" id="adm-kpi-rate">0% completion rate</span>
+            </div>
+          </div>
+
+          <!-- Analytical Metrics Charts -->
+          <div class="charts-grid">
+            <div class="chart-card">
+              <div class="chart-card-head">
+                <h3>Complaints by Lifecycle Stage</h3>
+                <span class="mono-label">Count</span>
+              </div>
+              <div class="chart-canvas-wrap">
+                <canvas id="chart-status"></canvas>
+              </div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-card-head">
+                <h3>Complaints by Maintenance Category</h3>
+                <span class="mono-label">Distribution</span>
+              </div>
+              <div class="chart-canvas-wrap">
+                <canvas id="chart-category"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Filters Toolbar -->
+          <div class="admin-toolbar">
+            <div class="admin-filters">
+              <div class="admin-filter-item">
+                <label class="field-label" for="adm-search">Search ID / Title / Council</label>
+                <input type="text" id="adm-search" class="field-input" placeholder="Filter complaints…" oninput="renderAdminTable()">
+              </div>
+              <div class="admin-filter-item">
+                <label class="field-label" for="adm-filter-status">Filter Status</label>
+                <select id="adm-filter-status" class="field-select" onchange="renderAdminTable()">
+                  <option value="ALL">All Stages</option>
+                  <option value="Received">Received</option>
+                  <option value="Assigned">Assigned</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Resolved">Resolved</option>
+                </select>
+              </div>
+              <div class="admin-filter-item">
+                <label class="field-label" for="adm-filter-province">Filter Province</label>
+                <select id="adm-filter-province" class="field-select" onchange="renderAdminTable()">
+                  <option value="ALL">All Provinces</option>
+                </select>
+              </div>
+            </div>
+            <span class="mono-label" id="adm-table-count">0 records shown</span>
+          </div>
+
+          <!-- Admin Action Notice -->
+          <div id="admin-toast" style="display:none; background:var(--positive-bg); border-left:4px solid var(--brand-green); padding:var(--space-sm) var(--space-md); margin-bottom:var(--space-md); font-weight:600;" role="status" aria-live="polite"></div>
+
+          <!-- Complaint Organization Table -->
+          <div class="table-card">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Ref ID</th>
+                  <th>Issue &amp; Category</th>
+                  <th>Council &amp; Province</th>
+                  <th>Date &amp; Identity</th>
+                  <th>Assigned Officer</th>
+                  <th>Lifecycle Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="admin-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Institutional Footer -->
+    <footer class="site-footer">
+      <div>
+        <strong>Clean Sri Lanka</strong> &mdash; Digital Complaint Management System
+      </div>
+      <div class="footer-meta">
+        9 Provinces &middot; Vector Map Boundaries: Natural Earth (Public Domain) &middot; Built for Civic Transparency
+      </div>
+    </footer>
+  </div>
+
+  <!-- Host persistence shim -->
+  <api-shim></api-shim>
+
+  <script>
+    /* =====================================================================
+       1. GEOGRAPHIC & ORGANIZATIONAL REFERENCE DATA (All 9 Provinces & 25 Districts)
+       ===================================================================== */
+    const SRI_LANKA_GEO = {
+      'Western': {
+        'Colombo': [
+          { name: `Colombo Municipal Council`, lat: 6.9271, lng: 79.8612 },
+          { name: `Dehiwala-Mount Lavinia Municipal Council`, lat: 6.8511, lng: 79.8659 },
+          { name: `Sri Jayawardenepura Kotte Municipal Council`, lat: 6.8941, lng: 79.9025 },
+          { name: `Moratuwa Municipal Council`, lat: 6.7730, lng: 79.8816 },
+          { name: `Kaduwela Municipal Council`, lat: 6.9357, lng: 79.9842 }
+        ],
+        'Gampaha': [
+          { name: `Negombo Municipal Council`, lat: 7.2008, lng: 79.8737 },
+          { name: `Gampaha Municipal Council`, lat: 7.0840, lng: 80.0098 },
+          { name: `Kelaniya Pradeshiya Sabha`, lat: 6.9553, lng: 79.9220 }
+        ],
+        'Kalutara': [
+          { name: `Kalutara Municipal Council`, lat: 6.5854, lng: 79.9607 },
+          { name: `Panadura Urban Council`, lat: 6.7132, lng: 79.9026 }
+        ]
+      },
+      'Central': {
+        'Kandy': [
+          { name: `Kandy Municipal Council`, lat: 7.2906, lng: 80.6337 },
+          { name: `Gampola Urban Council`, lat: 7.1643, lng: 80.5696 }
+        ],
+        'Matale': [
+          { name: `Matale Municipal Council`, lat: 7.4675, lng: 80.6234 },
+          { name: `Dambulla Municipal Council`, lat: 7.8742, lng: 80.6511 }
+        ],
+        'Nuwara Eliya': [
+          { name: `Nuwara Eliya Municipal Council`, lat: 6.9497, lng: 80.7891 },
+          { name: `Hatton-Dickoya Urban Council`, lat: 6.8916, lng: 80.5955 }
+        ]
+      },
+      'Southern': {
+        'Galle': [
+          { name: `Galle Municipal Council`, lat: 6.0535, lng: 80.2210 },
+          { name: `Ambalangoda Urban Council`, lat: 6.2355, lng: 80.0538 }
+        ],
+        'Matara': [
+          { name: `Matara Municipal Council`, lat: 5.9549, lng: 80.5550 },
+          { name: `Weligama Urban Council`, lat: 5.9750, lng: 80.4297 }
+        ],
+        'Hambantota': [
+          { name: `Hambantota Municipal Council`, lat: 6.1429, lng: 81.1212 },
+          { name: `Tangalle Urban Council`, lat: 6.0243, lng: 80.7941 }
+        ]
+      },
+      'Northern': {
+        'Jaffna': [
+          { name: `Jaffna Municipal Council`, lat: 9.6615, lng: 80.0255 },
+          { name: `Point Pedro Urban Council`, lat: 9.8167, lng: 80.2333 }
+        ],
+        'Kilinochchi': [
+          { name: `Karachchi Pradeshiya Sabha`, lat: 9.3803, lng: 80.3770 }
+        ],
+        'Mannar': [
+          { name: `Mannar Urban Council`, lat: 8.9810, lng: 79.9044 }
+        ],
+        'Vavuniya': [
+          { name: `Vavuniya Urban Council`, lat: 8.7542, lng: 80.4982 }
+        ],
+        'Mullaitivu': [
+          { name: `Maritimepattu Pradeshiya Sabha`, lat: 9.2671, lng: 80.8142 }
+        ]
+      },
+      'Eastern': {
+        'Trincomalee': [
+          { name: `Trincomalee Urban Council`, lat: 8.5874, lng: 81.2152 }
+        ],
+        'Batticaloa': [
+          { name: `Batticaloa Municipal Council`, lat: 7.7310, lng: 81.6747 }
+        ],
+        'Ampara': [
+          { name: `Kalmunai Municipal Council`, lat: 7.4090, lng: 81.8347 },
+          { name: `Ampara Urban Council`, lat: 7.2975, lng: 81.6820 }
+        ]
+      },
+      'North Western': {
+        'Kurunegala': [
+          { name: `Kurunegala Municipal Council`, lat: 7.4818, lng: 80.3609 },
+          { name: `Kuliyapitiya Urban Council`, lat: 7.4688, lng: 80.0401 }
+        ],
+        'Puttalam': [
+          { name: `Chilaw Urban Council`, lat: 7.5758, lng: 79.7953 },
+          { name: `Puttalam Urban Council`, lat: 8.0362, lng: 79.8283 }
+        ]
+      },
+      'North Central': {
+        'Anuradhapura': [
+          { name: `Anuradhapura Municipal Council`, lat: 8.3114, lng: 80.4037 }
+        ],
+        'Polonnaruwa': [
+          { name: `Polonnaruwa Municipal Council`, lat: 7.9403, lng: 81.0188 }
+        ]
+      },
+      'Uva': {
+        'Badulla': [
+          { name: `Badulla Municipal Council`, lat: 6.9934, lng: 81.0550 },
+          { name: `Bandarawela Municipal Council`, lat: 6.8300, lng: 80.9889 }
+        ],
+        'Monaragala': [
+          { name: `Monaragala Pradeshiya Sabha`, lat: 6.8728, lng: 81.3507 }
+        ]
+      },
+      'Sabaragamuwa': {
+        'Ratnapura': [
+          { name: `Ratnapura Municipal Council`, lat: 6.7056, lng: 80.3847 },
+          { name: `Balangoda Urban Council`, lat: 6.6489, lng: 80.7033 }
+        ],
+        'Kegalle': [
+          { name: `Kegalle Urban Council`, lat: 7.2513, lng: 80.3464 }
+        ]
+      }
+    };
+
+    const FIELD_OFFICERS = [
+      `Unassigned`,
+      `Eng. K. Perera (Colombo Unit)`,
+      `Inspector N. Jayawardena`,
+      `Sup. R. Fernando (Sanitation)`,
+      `Eng. S. Sivakumar (Northern Ops)`,
+      `Coordinator M. Fazil (Eastern Ops)`,
+      `Eng. D. Wickramaratne (Central)`
+    ];
+
+    const STAGES = [`Received`, `Assigned`, `In Progress`, `Resolved`];
+
+    function createSeedComplaints() {
+      return [
+        {
+          id: `CSL-2026-1042`,
+          title: `Blocked storm drain near Beira Lake culvert`,
+          category: `Blocked Drainage & Flooding`,
+          description: `Heavy silt and plastic debris blocking the stormwater intake grate along Chittampalam A. Gardiner Mawatha, causing pooling during afternoon showers.`,
+          anonymous: false,
+          reporterName: `Amaya Senanayake`,
+          reporterPhone: `+94 77 318 4421`,
+          reporterEmail: `amaya.s@example.com`,
+          province: `Western`,
+          district: `Colombo`,
+          council: `Colombo Municipal Council`,
+          street: `Sir Chittampalam A. Gardiner Mawatha, Colombo 02`,
+          lat: 6.9295,
+          lng: 79.8492,
+          photoMeta: { name: `beira_culvert.jpg`, sizeKB: 412 },
+          status: `In Progress`,
+          officer: `Eng. K. Perera (Colombo Unit)`,
+          submittedAt: `2026-11-21 09:14`,
+          notifyChannel: `SMS (+94 77 *** 4421) & Email Delivered`,
+          history: [
+            { stage: `Received`, time: `2026-11-21 09:14`, note: `GPS-verified report logged via Clean Sri Lanka portal.` },
+            { stage: `Assigned`, time: `2026-11-21 11:30`, note: `Dispatched to Eng. K. Perera (Colombo Unit).` },
+            { stage: `In Progress`, time: `2026-11-22 08:45`, note: `Drainage vacuum crew clearing culvert debris on site.` }
+          ]
+        },
+        {
+          id: `CSL-2026-1043`,
+          title: `Illegal night-time construction waste dumping`,
+          category: `Illegal Dumping & Solid Waste`,
+          description: `Tipper load of concrete rubble and packaging discarded adjacent to the Peradeniya Road green belt embankment.`,
+          anonymous: true,
+          reporterName: `Anonymous Citizen`,
+          reporterPhone: ``,
+          reporterEmail: ``,
+          province: `Central`,
+          district: `Kandy`,
+          council: `Kandy Municipal Council`,
+          street: `Peradeniya Road near Getambe Junction`,
+          lat: 7.2698,
+          lng: 80.6061,
+          photoMeta: { name: `kandy_rubble.png`, sizeKB: 685 },
+          status: `Assigned`,
+          officer: `Eng. D. Wickramaratne (Central)`,
+          submittedAt: `2026-11-22 14:20`,
+          notifyChannel: `Anonymous Portal Notice Active (Check via Reference ID)`,
+          history: [
+            { stage: `Received`, time: `2026-11-22 14:20`, note: `Anonymous report received; identity fields omitted.` },
+            { stage: `Assigned`, time: `2026-11-23 09:05`, note: `Assigned to Eng. D. Wickramaratne for inspection and clearance.` }
+          ]
+        },
+        {
+          id: `CSL-2026-1044`,
+          title: `Coastal plastic accumulation along Fort promenade`,
+          category: `Public Park & Beach Pollution`,
+          description: `Tidal surge left dense fishing net fragments and bottles along the southern rampart walkway.`,
+          anonymous: false,
+          reporterName: `Roshan De Silva`,
+          reporterPhone: `+94 71 904 1180`,
+          reporterEmail: ``,
+          province: `Southern`,
+          district: `Galle`,
+          council: `Galle Municipal Council`,
+          street: `Rampart Street, Galle Fort`,
+          lat: 6.0268,
+          lng: 80.2170,
+          photoMeta: null,
+          status: `Resolved`,
+          officer: `Sup. R. Fernando (Sanitation)`,
+          submittedAt: `2026-11-18 07:50`,
+          notifyChannel: `SMS (+94 71 *** 1180) Closure Alert Sent`,
+          history: [
+            { stage: `Received`, time: `2026-11-18 07:50`, note: `Coastal sanitation ticket registered.` },
+            { stage: `Assigned`, time: `2026-11-18 09:10`, note: `Assigned to Sup. R. Fernando (Sanitation).` },
+            { stage: `In Progress`, time: `2026-11-18 13:30`, note: `12-member coastal cleanup team deployed.` },
+            { stage: `Resolved`, time: `2026-11-19 16:00`, note: `Promenade cleared and 420 kg recyclables transferred to sorting hub.` }
+          ]
+        },
+        {
+          id: `CSL-2026-1045`,
+          title: `Non-functioning LED streetlight at hospital crossing`,
+          category: `Streetlight & Electrical Hazard`,
+          description: `Three consecutive streetlight poles are dark at the main pedestrian crossing outside Jaffna Teaching Hospital.`,
+          anonymous: false,
+          reporterName: `Tharshi Kugathasan`,
+          reporterPhone: `+94 76 550 2291`,
+          reporterEmail: `tharshi.k@example.com`,
+          province: `Northern`,
+          district: `Jaffna`,
+          council: `Jaffna Municipal Council`,
+          street: `Hospital Street, Jaffna`,
+          lat: 9.6648,
+          lng: 80.0155,
+          photoMeta: null,
+          status: `Received`,
+          officer: `Unassigned`,
+          submittedAt: `2026-11-24 06:40`,
+          notifyChannel: `SMS & Email Confirmation Sent`,
+          history: [
+            { stage: `Received`, time: `2026-11-24 06:40`, note: `Awaiting electrical unit officer assignment.` }
+          ]
+        },
+        {
+          id: `CSL-2026-1046`,
+          title: `Collapsed culvert kerb & deep pothole`,
+          category: `Road & Pavement Damage`,
+          description: `Edge of asphalt carriageway subsided 18 cm near the central market goods entrance.`,
+          anonymous: true,
+          reporterName: `Anonymous Citizen`,
+          reporterPhone: ``,
+          reporterEmail: ``,
+          province: `Eastern`,
+          district: `Batticaloa`,
+          council: `Batticaloa Municipal Council`,
+          street: `Bar Road, Batticaloa Town`,
+          lat: 7.7170,
+          lng: 81.7010,
+          photoMeta: { name: `kerb_damage.jpg`, sizeKB: 510 },
+          status: `Resolved`,
+          officer: `Coordinator M. Fazil (Eastern Ops)`,
+          submittedAt: `2026-11-15 11:05`,
+          notifyChannel: `Anonymous Portal Notice Active (Resolved)`,
+          history: [
+            { stage: `Received`, time: `2026-11-15 11:05`, note: `Road hazard logged.` },
+            { stage: `Assigned`, time: `2026-11-15 15:20`, note: `Assigned to Coordinator M. Fazil (Eastern Ops).` },
+            { stage: `In Progress`, time: `2026-11-16 09:00`, note: `Concrete kerb reinforcement poured.` },
+            { stage: `Resolved`, time: `2026-11-17 17:15`, note: `Resurfaced and reopened safely.` }
+          ]
+        },
+        {
+          id: `CSL-2026-1047`,
+          title: `Broken municipal water main valve leaking onto lane`,
+          category: `Water Leak & Sanitation`,
+          description: `Continuous pressurized leak flooding residential footpath near Lake Round.`,
+          anonymous: false,
+          reporterName: `Dinesh Bandara`,
+          reporterPhone: `+94 77 889 0123`,
+          reporterEmail: ``,
+          province: `North Western`,
+          district: `Kurunegala`,
+          council: `Kurunegala Municipal Council`,
+          street: `Lake Round Road, Kurunegala`,
+          lat: 7.4865,
+          lng: 80.3652,
+          photoMeta: null,
+          status: `In Progress`,
+          officer: `Inspector N. Jayawardena`,
+          submittedAt: `2026-11-23 10:15`,
+          notifyChannel: `SMS (+94 77 *** 0123) In-Progress Update Sent`,
+          history: [
+            { stage: `Received`, time: `2026-11-23 10:15`, note: `Water utility alert logged.` },
+            { stage: `Assigned`, time: `2026-11-23 12:00`, note: `Assigned to Inspector N. Jayawardena.` },
+            { stage: `In Progress`, time: `2026-11-24 08:10`, note: `Isolation valve replacement underway.` }
+          ]
+        }
+      ];
+    }
+
+    /* =====================================================================
+       2. GLOBAL STATE & PERSISTENCE
+       ===================================================================== */
+    let complaints = createSeedComplaints();
+    let activeTrackId = complaints[0].id;
+    let lastConfirmedId = ``;
+    let selectedPhotoMeta = null;
+    let selectedPhotoPreviewUrl = ``;
+
+    let gpsMap = null;
+    let gpsMarker = null;
+    let gpsGeoLoaded = false;
+
+    let statusChart = null;
+    let categoryChart = null;
+
+    function getTokenColor(name) {
+      return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
+
+    function escapeHtml(str) {
+      return String(str == null ? `` : str)
+        .replace(/&/g, `&amp;`)
+        .replace(/</g, `&lt;`)
+        .replace(/>/g, `&gt;`)
+        .replace(/"/g, `&quot;`)
+        .replace(/'/g, `&#39;`);
+    }
+
+    async function persistAppState() {
+      try {
+        if (window.notebookAppApi && typeof window.notebookAppApi.setAppState === `function`) {
+          await window.notebookAppApi.setAppState({
+            complaints: complaints,
+            lastTrackedId: activeTrackId
+          });
+        }
+      } catch (err) {
+        // Non-fatal fallback
+      }
+    }
+
+    /* =====================================================================
+       3. NAVIGATION TABS (Overview ONLY visible initially)
+       ===================================================================== */
+    function switchTab(tabName) {
+      const tabs = [`overview`, `report`, `track`, `admin`];
+      tabs.forEach(function (name) {
+        const btn = document.getElementById(`tab-` + name);
+        const panel = document.getElementById(`view-` + name);
+        const isActive = (name === tabName);
+        if (btn) btn.setAttribute(`aria-selected`, isActive ? `true` : `false`);
+        if (panel) {
+          if (isActive) {
+            panel.classList.add(`is-active`);
+          } else {
+            panel.classList.remove(`is-active`);
+          }
+        }
+      });
+
+      if (tabName === `report`) {
+        setTimeout(function () {
+          initOrRefreshGpsMap();
+        }, 60);
+      } else if (tabName === `track`) {
+        renderTrackerView(activeTrackId);
+      } else if (tabName === `admin`) {
+        renderAdminDashboard();
+      } else if (tabName === `overview`) {
+        renderOverviewMetrics();
+      }
+
+      window.scrollTo({ top: 0, behavior: `smooth` });
+    }
+
+    /* =====================================================================
+       4. OVERVIEW METRICS
+       ===================================================================== */
+    function renderOverviewMetrics() {
+      const total = complaints.length;
+      const resolved = complaints.filter(function (c) { return c.status === `Resolved`; }).length;
+      const active = total - resolved;
+      const anon = complaints.filter(function (c) { return c.anonymous; }).length;
+      const rate = total > 0 ? Math.round((resolved / total) * 100) : 0;
+
+      const setEl = function (id, val) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+      };
+      setEl(`ov-total-count`, String(total));
+      setEl(`ov-active-count`, String(active));
+      setEl(`ov-resolved-count`, String(resolved));
+      setEl(`ov-resolution-rate`, rate + `% closure rate`);
+      setEl(`ov-anon-count`, String(anon));
+      setEl(`nav-active-count`, String(active));
+    }
+
+    /* =====================================================================
+       5. REPORT ISSUE FORM, DROPDOWNS & VECTOR GPS PINPOINT MAP
+       ===================================================================== */
+    function populateProvinceDropdowns() {
+      const reportProv = document.getElementById(`loc-province`);
+      const adminProv = document.getElementById(`adm-filter-province`);
+      const provinces = Object.keys(SRI_LANKA_GEO);
+
+      if (reportProv) {
+        reportProv.innerHTML = `<option value="">Select Province…</option>`;
+        provinces.forEach(function (prov) {
+          const opt = document.createElement(`option`);
+          opt.value = prov;
+          opt.textContent = prov + ` Province`;
+          reportProv.appendChild(opt);
+        });
+        reportProv.value = `Western`;
+      }
+
+      if (adminProv) {
+        adminProv.innerHTML = `<option value="ALL">All Provinces</option>`;
+        provinces.forEach(function (prov) {
+          const opt = document.createElement(`option`);
+          opt.value = prov;
+          opt.textContent = prov + ` Province`;
+          adminProv.appendChild(opt);
+        });
+      }
+
+      handleProvinceChange();
+    }
+
+    function handleProvinceChange() {
+      const provSelect = document.getElementById(`loc-province`);
+      const distSelect = document.getElementById(`loc-district`);
+      const councilSelect = document.getElementById(`loc-council`);
+      if (!provSelect || !distSelect || !councilSelect) return;
+
+      const prov = provSelect.value;
+      distSelect.innerHTML = `<option value="">Select District…</option>`;
+      councilSelect.innerHTML = `<option value="">Select Council…</option>`;
+
+      if (prov && SRI_LANKA_GEO[prov]) {
+        const districts = Object.keys(SRI_LANKA_GEO[prov]);
+        districts.forEach(function (d) {
+          const opt = document.createElement(`option`);
+          opt.value = d;
+          opt.textContent = d + ` District`;
+          distSelect.appendChild(opt);
+        });
+        if (districts.length > 0) {
+          distSelect.value = districts[0];
+          handleDistrictChange();
+        }
+      }
+    }
+
+    function handleDistrictChange() {
+      const provSelect = document.getElementById(`loc-province`);
+      const distSelect = document.getElementById(`loc-district`);
+      const councilSelect = document.getElementById(`loc-council`);
+      if (!provSelect || !distSelect || !councilSelect) return;
+
+      const prov = provSelect.value;
+      const dist = distSelect.value;
+      councilSelect.innerHTML = `<option value="">Select Council…</option>`;
+
+      if (prov && dist && SRI_LANKA_GEO[prov] && SRI_LANKA_GEO[prov][dist]) {
+        const councils = SRI_LANKA_GEO[prov][dist];
+        councils.forEach(function (c) {
+          const opt = document.createElement(`option`);
+          opt.value = c.name;
+          opt.textContent = c.name;
+          councilSelect.appendChild(opt);
+        });
+        if (councils.length > 0) {
+          councilSelect.value = councils[0].name;
+          handleCouncilChange();
+        }
+      }
+    }
+
+    function findSelectedCouncilCoords() {
+      const provEl = document.getElementById(`loc-province`);
+      const distEl = document.getElementById(`loc-district`);
+      const councilEl = document.getElementById(`loc-council`);
+      if (!provEl || !distEl || !councilEl) return null;
+      const list = (SRI_LANKA_GEO[provEl.value] && SRI_LANKA_GEO[provEl.value][distEl.value]) || [];
+      for (let i = 0; i < list.length; i++) {
+        if (list[i].name === councilEl.value) return list[i];
+      }
+      return null;
+    }
+
+    function handleCouncilChange() {
+      const found = findSelectedCouncilCoords();
+      if (found) {
+        setPinCoordinates(found.lat, found.lng, `Centered on ` + found.name + `. Click map to fine-tune pinpoint.`);
+      }
+    }
+
+    function snapToSelectedCouncil() {
+      const found = findSelectedCouncilCoords();
+      if (found) {
+        setPinCoordinates(found.lat, found.lng, `Snapped GPS pinpoint to ` + found.name + `.`);
+      } else {
+        setPinCoordinates(7.8731, 80.7718, `Centered on Sri Lanka national view.`);
+      }
+    }
+
+    function setPinCoordinates(lat, lng, statusMessage) {
+      const clampedLat = Math.max(5.85, Math.min(9.88, Number(lat)));
+      const clampedLng = Math.max(79.55, Math.min(81.95, Number(lng)));
+      const latStr = clampedLat.toFixed(4);
+      const lngStr = clampedLng.toFixed(4);
+
+      const latInput = document.getElementById(`gps-lat-input`);
+      const lngInput = document.getElementById(`gps-lng-input`);
+      const readout = document.getElementById(`gps-coords-text`);
+      const note = document.getElementById(`gps-status-note`);
+
+      if (latInput) latInput.value = latStr;
+      if (lngInput) lngInput.value = lngStr;
+      if (readout) readout.textContent = latStr + `° N, ` + lngStr + `° E`;
+      if (note && statusMessage) note.textContent = statusMessage;
+
+      if (gpsMarker && gpsMap) {
+        gpsMarker.setLatLng([clampedLat, clampedLng]);
+        gpsMarker.setPopupContent(`<strong>Pinned Complaint Site</strong><br>${latStr}° N, ${lngStr}° E`);
+      }
+    }
+
+    function updatePinFromCoordInputs() {
+      const latInput = document.getElementById(`gps-lat-input`);
+      const lngInput = document.getElementById(`gps-lng-input`);
+      if (!latInput || !lngInput) return;
+      const lat = parseFloat(latInput.value);
+      const lng = parseFloat(lngInput.value);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        setPinCoordinates(lat, lng, `Updated pinpoint from manual coordinate entry.`);
+      }
+    }
+
+    function detectBrowserGps() {
+      const note = document.getElementById(`gps-status-note`);
+      if (!navigator.geolocation) {
+        if (note) note.textContent = `Browser GPS unavailable; click the Sri Lanka map or use "Center on Council".`;
+        return;
+      }
+      if (note) note.textContent = `Requesting device GPS coordinates…`;
+      navigator.geolocation.getCurrentPosition(
+        function (pos) {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          if (lat >= 5.8 && lat <= 9.9 && lng >= 79.5 && lng <= 82.0) {
+            setPinCoordinates(lat, lng, `Locked to your live device GPS position.`);
+          } else {
+            snapToSelectedCouncil();
+            if (note) note.textContent = `Device GPS is outside Sri Lanka bounds; centered on selected Municipal Council.`;
+          }
+        },
+        function () {
+          snapToSelectedCouncil();
+          if (note) note.textContent = `Location permission declined or blocked in preview; centered on selected Municipal Council.`;
+        },
+        { timeout: 5000 }
+      );
+    }
+
+    function initOrRefreshGpsMap() {
+      const container = document.getElementById(`report-gps-map`);
+      if (!container || typeof L === `undefined`) return;
+
+      if (!gpsMap) {
+        /* Vector basemap at zoom 6 ensures full Sri Lanka coastline & borders are clearly inside viewport */
+        gpsMap = L.map(`report-gps-map`, {
+          center: [7.8731, 80.7718],
+          zoom: 6,
+          minZoom: 5,
+          maxZoom: 8,
+          scrollWheelZoom: false
+        });
+        gpsMap.attributionControl.addAttribution(`Boundaries: Natural Earth (public domain)`);
+
+        const latVal = parseFloat((document.getElementById(`gps-lat-input`) || {}).value || `6.9271`);
+        const lngVal = parseFloat((document.getElementById(`gps-lng-input`) || {}).value || `79.8612`);
+
+        /* Render major provincial council hubs as subtle schematic reference dots */
+        Object.keys(SRI_LANKA_GEO).forEach(function (prov) {
+          const distKeys = Object.keys(SRI_LANKA_GEO[prov]);
+          const firstCouncil = SRI_LANKA_GEO[prov][distKeys[0]][0];
+          L.circleMarker([firstCouncil.lat, firstCouncil.lng], {
+            radius: 4,
+            color: getTokenColor(`--primary`),
+            fillColor: getTokenColor(`--background`),
+            fillOpacity: 1,
+            weight: 2
+          }).bindTooltip(firstCouncil.name).addTo(gpsMap);
+        });
+
+        /* Interactive complaint pinpoint marker */
+        gpsMarker = L.circleMarker([latVal, lngVal], {
+          radius: 9,
+          color: getTokenColor(`--brand-black`),
+          fillColor: getTokenColor(`--brand-green`),
+          fillOpacity: 1,
+          weight: 3
+        }).addTo(gpsMap);
+        gpsMarker.bindPopup(`<strong>Pinned Complaint Site</strong><br>${latVal.toFixed(4)}° N, ${lngVal.toFixed(4)}° E`);
+
+        gpsMap.on(`click`, function (e) {
+          setPinCoordinates(e.latlng.lat, e.latlng.lng, `Pinpoint dropped on map at ` + e.latlng.lat.toFixed(4) + `° N, ` + e.latlng.lng.toFixed(4) + `° E.`);
+        });
+
+        if (!gpsGeoLoaded && typeof topojson !== `undefined`) {
+          gpsGeoLoaded = true;
+          fetch(`https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-50m.json`)
+            .then(function (r) { return r.json(); })
+            .then(function (topo) {
+              const geo = topojson.feature(topo, topo.objects.countries);
+              const landLayer = L.geoJSON(geo, {
+                style: function (f) {
+                  const isLK = f && f.properties && f.properties.name === `Sri Lanka`;
+                  return {
+                    fillColor: isLK ? getTokenColor(`--background`) : getTokenColor(`--map-land`),
+                    fillOpacity: 1,
+                    color: isLK ? getTokenColor(`--brand-black`) : getTokenColor(`--map-border`),
+                    weight: isLK ? 1.8 : 0.8
+                  };
+                }
+              }).addTo(gpsMap);
+              landLayer.bringToBack();
+              gpsMap.invalidateSize();
+            })
+            .catch(function () {
+              /* Fallback schematic vector outline of Sri Lanka if network is offline */
+              const lkSchematic = [
+                [9.82, 80.22], [9.52, 80.42], [8.90, 80.92], [8.55, 81.24],
+                [7.72, 81.70], [7.28, 81.86], [6.40, 81.53], [6.02, 80.80],
+                [5.92, 80.52], [6.05, 80.20], [6.70, 79.90], [7.20, 79.84],
+                [8.04, 79.80], [8.98, 79.90], [9.66, 79.98]
+              ];
+              const poly = L.polygon(lkSchematic, {
+                fillColor: getTokenColor(`--background`),
+                fillOpacity: 1,
+                color: getTokenColor(`--brand-black`),
+                weight: 1.8
+              }).addTo(gpsMap);
+              poly.bringToBack();
+            });
+        }
+      }
+
+      setTimeout(function () {
+        if (gpsMap) gpsMap.invalidateSize();
+      }, 120);
+    }
+
+    function handlePhotoSelected(event) {
+      const input = event.target;
+      if (!input || !input.files || input.files.length === 0) return;
+      const file = input.files[0];
+      const sizeKB = Math.max(1, Math.round(file.size / 1024));
+      selectedPhotoMeta = { name: file.name, sizeKB: sizeKB };
+
+      const previewBox = document.getElementById(`photo-preview-box`);
+      const previewImg = document.getElementById(`photo-preview-img`);
+      const nameEl = document.getElementById(`photo-file-name`);
+      const sizeEl = document.getElementById(`photo-file-size`);
+
+      if (selectedPhotoPreviewUrl) {
+        URL.revokeObjectURL(selectedPhotoPreviewUrl);
+      }
+      selectedPhotoPreviewUrl = URL.createObjectURL(file);
+
+      if (previewImg) previewImg.src = selectedPhotoPreviewUrl;
+      if (nameEl) nameEl.textContent = file.name;
+      if (sizeEl) sizeEl.textContent = sizeKB + ` KB · Ready for submission`;
+      if (previewBox) previewBox.classList.add(`has-photo`);
+    }
+
+    function clearSelectedPhoto() {
+      const input = document.getElementById(`issue-photo-input`);
+      const previewBox = document.getElementById(`photo-preview-box`);
+      const previewImg = document.getElementById(`photo-preview-img`);
+      if (input) input.value = ``;
+      if (previewImg) previewImg.src = ``;
+      if (previewBox) previewBox.classList.remove(`has-photo`);
+      if (selectedPhotoPreviewUrl) {
+        URL.revokeObjectURL(selectedPhotoPreviewUrl);
+        selectedPhotoPreviewUrl = ``;
+      }
+      selectedPhotoMeta = null;
+    }
+
+    function updateDescriptionCounter() {
+      const desc = document.getElementById(`issue-description`);
+      const hint = document.getElementById(`desc-char-hint`);
+      if (!desc || !hint) return;
+      const len = desc.value.trim().length;
+      hint.textContent = len + ` characters` + (len < 15 ? ` — please include at least 15 characters for council triage.` : ` — ready for triage.`);
+    }
+
+    function toggleAnonymousIdentity() {
+      const toggle = document.getElementById(`hide-identity-toggle`);
+      const wrap = document.getElementById(`identity-fields-wrap`);
+      if (!toggle || !wrap) return;
+      if (toggle.checked) {
+        wrap.classList.add(`is-hidden`);
+      } else {
+        wrap.classList.remove(`is-hidden`);
+      }
+    }
+
+    function generateUniqueRefId() {
+      let candidate = ``;
+      const existingIds = {};
+      complaints.forEach(function (c) { existingIds[c.id] = true; });
+      do {
+        const num = Math.floor(1100 + Math.random() * 8899);
+        candidate = `CSL-2026-` + num;
+      } while (existingIds[candidate]);
+      return candidate;
+    }
+
+    function formatNowTimestamp() {
+      const now = new Date();
+      const pad = function (n) { return String(n).padStart(2, `0`); };
+      return now.getFullYear() + `-` + pad(now.getMonth() + 1) + `-` + pad(now.getDate()) + ` ` + pad(now.getHours()) + `:` + pad(now.getMinutes());
+    }
+
+    function handleComplaintSubmit(event) {
+      event.preventDefault();
+      const errBanner = document.getElementById(`report-error-banner`);
+      const titleEl = document.getElementById(`issue-title`);
+      const catEl = document.getElementById(`issue-category`);
+      const descEl = document.getElementById(`issue-description`);
+      const provEl = document.getElementById(`loc-province`);
+      const distEl = document.getElementById(`loc-district`);
+      const councilEl = document.getElementById(`loc-council`);
+      const streetEl = document.getElementById(`loc-street`);
+      const anonEl = document.getElementById(`hide-identity-toggle`);
+      const nameEl = document.getElementById(`reporter-name`);
+      const phoneEl = document.getElementById(`reporter-phone`);
+      const emailEl = document.getElementById(`reporter-email`);
+      const latEl = document.getElementById(`gps-lat-input`);
+      const lngEl = document.getElementById(`gps-lng-input`);
+
+      const requiredFields = [titleEl, catEl, descEl, provEl, distEl, councilEl, streetEl];
+      requiredFields.forEach(function (el) {
+        if (el) el.removeAttribute(`aria-invalid`);
+      });
+
+      const problems = [];
+      if (!titleEl || titleEl.value.trim().length < 4) {
+        problems.push(`Enter a clear Issue Title (at least 4 characters).`);
+        if (titleEl) titleEl.setAttribute(`aria-invalid`, `true`);
+      }
+      if (!catEl || !catEl.value) {
+        problems.push(`Select a Maintenance Category.`);
+        if (catEl) catEl.setAttribute(`aria-invalid`, `true`);
+      }
+      if (!descEl || descEl.value.trim().length < 15) {
+        problems.push(`Provide a Maintenance Description (at least 15 characters).`);
+        if (descEl) descEl.setAttribute(`aria-invalid`, `true`);
+      }
+      if (!provEl || !provEl.value || !distEl || !distEl.value || !councilEl || !councilEl.value) {
+        problems.push(`Select Province, District, and Municipal Council.`);
+        if (provEl && !provEl.value) provEl.setAttribute(`aria-invalid`, `true`);
+        if (distEl && !distEl.value) distEl.setAttribute(`aria-invalid`, `true`);
+        if (councilEl && !councilEl.value) councilEl.setAttribute(`aria-invalid`, `true`);
+      }
+      if (!streetEl || streetEl.value.trim().length < 3) {
+        problems.push(`Enter a Street Address or nearby landmark.`);
+        if (streetEl) streetEl.setAttribute(`aria-invalid`, `true`);
+      }
+
+      if (problems.length > 0) {
+        if (errBanner) {
+          errBanner.textContent = `Please resolve before submitting: ` + problems.join(` `);
+          errBanner.classList.add(`is-visible`);
+        }
+        return;
+      }
+
+      if (errBanner) {
+        errBanner.classList.remove(`is-visible`);
+        errBanner.textContent = ``;
+      }
+
+      const isAnonymous = !!(anonEl && anonEl.checked);
+      const rName = isAnonymous ? `Anonymous Citizen` : ((nameEl && nameEl.value.trim()) ? nameEl.value.trim() : `Citizen Reporter`);
+      const rPhone = isAnonymous ? `` : ((phoneEl && phoneEl.value.trim()) ? phoneEl.value.trim() : ``);
+      const rEmail = isAnonymous ? `` : ((emailEl && emailEl.value.trim()) ? emailEl.value.trim() : ``);
+      const lat = parseFloat((latEl && latEl.value) || `6.9271`) || 6.9271;
+      const lng = parseFloat((lngEl && lngEl.value) || `79.8612`) || 79.8612;
+      const ts = formatNowTimestamp();
+      const newId = generateUniqueRefId();
+
+      let notifyStatus = `Portal Reference Tracking Active`;
+      if (isAnonymous) {
+        notifyStatus = `Anonymous Portal Notice Active (Check via Reference ID)`;
+      } else if (rPhone && rEmail) {
+        notifyStatus = `SMS & Email Alerts Enabled`;
+      } else if (rPhone) {
+        notifyStatus = `SMS Alerts Enabled (` + rPhone + `)`;
+      } else if (rEmail) {
+        notifyStatus = `Email Alerts Enabled (` + rEmail + `)`;
+      }
+
+      const newComplaint = {
+        id: newId,
+        title: titleEl.value.trim(),
+        category: catEl.value,
+        description: descEl.value.trim(),
+        anonymous: isAnonymous,
+        reporterName: rName,
+        reporterPhone: rPhone,
+        reporterEmail: rEmail,
+        province: provEl.value,
+        district: distEl.value,
+        council: councilEl.value,
+        street: streetEl.value.trim(),
+        lat: Number(lat.toFixed(4)),
+        lng: Number(lng.toFixed(4)),
+        photoMeta: selectedPhotoMeta,
+        status: `Received`,
+        officer: `Unassigned`,
+        submittedAt: ts,
+        notifyChannel: notifyStatus,
+        history: [
+          {
+            stage: `Received`,
+            time: ts,
+            note: `Logged via Clean Sri Lanka portal (` + (isAnonymous ? `Anonymous submission` : `Identified citizen`) + `) at ` + lat.toFixed(4) + `° N, ` + lng.toFixed(4) + `° E.`
+          }
+        ]
+      };
+
+      complaints.unshift(newComplaint);
+      activeTrackId = newId;
+      lastConfirmedId = newId;
+      persistAppState();
+      renderOverviewMetrics();
+
+      const confirmBox = document.getElementById(`report-confirmation`);
+      const confirmRef = document.getElementById(`confirm-ref-number`);
+      const confirmSummary = document.getElementById(`confirm-summary-text`);
+
+      if (confirmRef) confirmRef.textContent = newId;
+      if (confirmSummary) {
+        confirmSummary.textContent = `Logged "${newComplaint.title}" (${newComplaint.category}) to ${newComplaint.council}, ${newComplaint.province} Province at ${newComplaint.lat}° N, ${newComplaint.lng}° E. Identity: ${isAnonymous ? `Hidden (Anonymous)` : rName}.`;
+      }
+      if (confirmBox) {
+        confirmBox.classList.add(`is-visible`);
+        confirmBox.scrollIntoView({ behavior: `smooth`, block: `nearest` });
+      }
+    }
+
+    function copyConfirmedRef() {
+      const btn = document.getElementById(`copy-ref-btn`);
+      if (!lastConfirmedId) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(lastConfirmedId).catch(function () {});
+      }
+      if (btn) {
+        btn.textContent = `Copied!`;
+        setTimeout(function () { btn.textContent = `Copy ID`; }, 1800);
+      }
+    }
+
+    function trackConfirmedComplaint() {
+      if (lastConfirmedId) {
+        activeTrackId = lastConfirmedId;
+      }
+      switchTab(`track`);
+    }
+
+    function clearFormInputs() {
+      const form = document.getElementById(`complaint-form`);
+      if (form) form.reset();
+      clearSelectedPhoto();
+      toggleAnonymousIdentity();
+      populateProvinceDropdowns();
+      updateDescriptionCounter();
+      const errBanner = document.getElementById(`report-error-banner`);
+      if (errBanner) {
+        errBanner.classList.remove(`is-visible`);
+        errBanner.textContent = ``;
+      }
+    }
+
+    function resetReportForm(btn) {
+      if (btn && btn.dataset.armed !== `true`) {
+        btn.dataset.armed = `true`;
+        btn.textContent = `Click again to clear`;
+        setTimeout(function () {
+          if (btn.dataset.armed === `true`) {
+            btn.dataset.armed = `false`;
+            btn.textContent = `Clear Form`;
+          }
+        }, 3000);
+        return;
+      }
+      if (btn) {
+        btn.dataset.armed = `false`;
+        btn.textContent = `Clear Form`;
+      }
+      clearFormInputs();
+    }
+
+    function startAnotherReport() {
+      const confirmBox = document.getElementById(`report-confirmation`);
+      if (confirmBox) confirmBox.classList.remove(`is-visible`);
+      clearFormInputs();
+    }
+
+    /* =====================================================================
+       6. COMPLAINT STATUS & LIFECYCLE TRACKER
+       ===================================================================== */
+    function statusBadgeClass(status) {
+      if (status === `Assigned`) return `status-assigned`;
+      if (status === `In Progress`) return `status-in-progress`;
+      if (status === `Resolved`) return `status-resolved`;
+      return `status-received`;
+    }
+
+    function renderQuickTrackerChips() {
+      const container = document.getElementById(`tracker-quick-chips`);
+      if (!container) return;
+      container.innerHTML = ``;
+      complaints.slice(0, 8).forEach(function (c) {
+        const btn = document.createElement(`button`);
+        btn.type = `button`;
+        btn.className = `ref-chip` + (c.id === activeTrackId ? ` is-selected` : ``);
+        btn.textContent = c.id;
+        btn.onclick = function () {
+          activeTrackId = c.id;
+          renderTrackerView(c.id);
+          persistAppState();
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    function handleTrackerSearch(event) {
+      event.preventDefault();
+      const input = document.getElementById(`track-ref-input`);
+      const err = document.getElementById(`track-search-error`);
+      if (!input) return;
+      const query = input.value.trim().toUpperCase();
+      const match = complaints.find(function (c) { return c.id.toUpperCase() === query; });
+
+      if (!match) {
+        if (err) {
+          err.textContent = `No complaint found matching "${query}". Check the Reference Number (e.g., CSL-2026-1042) or choose one of the active IDs above.`;
+          err.classList.add(`is-visible`);
+        }
+        return;
+      }
+
+      if (err) {
+        err.classList.remove(`is-visible`);
+        err.textContent = ``;
+      }
+      activeTrackId = match.id;
+      renderTrackerView(match.id);
+      persistAppState();
+    }
+
+    function renderTrackerView(refId) {
+      renderQuickTrackerChips();
+      const item = complaints.find(function (c) { return c.id === refId; }) || complaints[0];
+      if (!item) return;
+
+      activeTrackId = item.id;
+      const input = document.getElementById(`track-ref-input`);
+      if (input) input.value = item.id;
+
+      const setTxt = function (id, txt) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = txt;
+      };
+
+      setTxt(`tr-ref-id`, item.id);
+      setTxt(`tr-title`, item.title);
+      setTxt(`tr-category`, item.category);
+      setTxt(`tr-jurisdiction`, item.council + `, ` + item.district + ` District (` + item.province + ` Province)`);
+      setTxt(`tr-street`, item.street);
+      setTxt(`tr-coords`, item.lat.toFixed(4) + `° N, ` + item.lng.toFixed(4) + `° E`);
+      setTxt(`tr-reporter`, item.anonymous ? `Anonymous (Identity Protected)` : item.reporterName);
+      setTxt(`tr-officer`, item.officer || `Unassigned`);
+      setTxt(`tr-date`, item.submittedAt);
+      setTxt(`tr-description`, item.description);
+      setTxt(`tr-notify-status`, item.notifyChannel || `Portal Status Active`);
+
+      const badge = document.getElementById(`tr-status-badge`);
+      if (badge) {
+        badge.className = `status-pill ` + statusBadgeClass(item.status);
+        badge.textContent = item.status;
+      }
+
+      const stageIdx = STAGES.indexOf(item.status);
+      const historyMap = {};
+      (item.history || []).forEach(function (h) {
+        historyMap[h.stage] = h;
+      });
+
+      for (let i = 0; i < STAGES.length; i++) {
+        const node = document.getElementById(`stage-node-` + i);
+        const mark = document.getElementById(`stage-mark-` + i);
+        const meta = document.getElementById(`stage-meta-` + i);
+        if (!node || !mark || !meta) continue;
+
+        node.classList.remove(`is-complete`, `is-current`);
+        if (i < stageIdx || (i === 3 && stageIdx === 3)) {
+          node.classList.add(`is-complete`);
+          mark.textContent = `Completed`;
+        } else if (i === stageIdx) {
+          node.classList.add(`is-current`);
+          mark.textContent = `Current Stage`;
+        } else {
+          mark.textContent = `Pending`;
+        }
+
+        if (historyMap[STAGES[i]]) {
+          meta.textContent = historyMap[STAGES[i]].time + ` — ` + historyMap[STAGES[i]].note;
+        } else {
+          const defaults = [
+            `Awaiting initial intake`,
+            `Awaiting Municipal Council officer assignment`,
+            `Awaiting on-site field crew dispatch`,
+            `Awaiting final resolution verification`
+          ];
+          meta.textContent = defaults[i];
+        }
+      }
+
+      const logList = document.getElementById(`tr-activity-log`);
+      if (logList) {
+        logList.innerHTML = ``;
+        (item.history || []).slice().reverse().forEach(function (entry) {
+          const li = document.createElement(`li`);
+          li.innerHTML = `<span class="mono-code">${escapeHtml(entry.time)}</span> &middot; <strong>${escapeHtml(entry.stage)}</strong><br>${escapeHtml(entry.note)}`;
+          logList.appendChild(li);
+        });
+      }
+    }
+
+    /* =====================================================================
+       7. ADMIN DASHBOARD (METRICS, CHARTS, TABLE & DISPATCH)
+       ===================================================================== */
+    function renderAdminDashboard() {
+      renderAdminMetrics();
+      renderAdminCharts();
+      renderAdminTable();
+    }
+
+    function renderAdminMetrics() {
+      const total = complaints.length;
+      const pending = complaints.filter(function (c) { return c.status === `Received` || c.status === `Assigned`; }).length;
+      const inProg = complaints.filter(function (c) { return c.status === `In Progress`; }).length;
+      const resolved = complaints.filter(function (c) { return c.status === `Resolved`; }).length;
+      const rate = total > 0 ? Math.round((resolved / total) * 100) : 0;
+
+      const setTxt = function (id, val) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+      };
+      setTxt(`adm-kpi-total`, String(total));
+      setTxt(`adm-kpi-pending`, String(pending));
+      setTxt(`adm-kpi-progress`, String(inProg));
+      setTxt(`adm-kpi-resolved`, String(resolved));
+      setTxt(`adm-kpi-rate`, rate + `% completion rate`);
+      renderOverviewMetrics();
+    }
+
+    function renderAdminCharts() {
+      if (typeof Chart === `undefined`) return;
+      const statusCanvas = document.getElementById(`chart-status`);
+      const catCanvas = document.getElementById(`chart-category`);
+      if (!statusCanvas || !catCanvas) return;
+
+      const stageCounts = STAGES.map(function (st) {
+        return complaints.filter(function (c) { return c.status === st; }).length;
+      });
+
+      const cyan = getTokenColor(`--primary`);
+      const green = getTokenColor(`--brand-green`);
+      const black = getTokenColor(`--brand-black`);
+      const deepCyan = getTokenColor(`--primary-text`);
+      const gridColor = getTokenColor(`--outline-variant`);
+      const labelColor = getTokenColor(`--on-surface-variant`);
+
+      if (statusChart) statusChart.destroy();
+      statusChart = new Chart(statusCanvas, {
+        type: `bar`,
+        data: {
+          labels: STAGES,
+          datasets: [{
+            label: `Complaints`,
+            data: stageCounts,
+            backgroundColor: [black, cyan, deepCyan, green],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { stepSize: 1, color: labelColor },
+              grid: { color: gridColor }
+            },
+            x: {
+              ticks: { color: black },
+              grid: { display: false }
+            }
+          }
+        }
+      });
+
+      const catCountsMap = {};
+      complaints.forEach(function (c) {
+        const shortName = c.category.split(`&`)[0].trim();
+        catCountsMap[shortName] = (catCountsMap[shortName] || 0) + 1;
+      });
+      const catLabels = Object.keys(catCountsMap);
+      const catValues = catLabels.map(function (k) { return catCountsMap[k]; });
+
+      if (categoryChart) categoryChart.destroy();
+      categoryChart = new Chart(catCanvas, {
+        type: `bar`,
+        data: {
+          labels: catLabels,
+          datasets: [{
+            label: `Cases`,
+            data: catValues,
+            backgroundColor: cyan,
+            borderWidth: 0
+          }]
+        },
+        options: {
+          indexAxis: `y`,
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: {
+              beginAtZero: true,
+              ticks: { stepSize: 1, color: labelColor },
+              grid: { color: gridColor }
+            },
+            y: {
+              ticks: { color: black },
+              grid: { display: false }
+            }
+          }
+        }
+      });
+    }
+
+    function renderAdminTable() {
+      const tbody = document.getElementById(`admin-table-body`);
+      const countEl = document.getElementById(`adm-table-count`);
+      if (!tbody) return;
+
+      const searchVal = ((document.getElementById(`adm-search`) || {}).value || ``).trim().toLowerCase();
+      const statusVal = (document.getElementById(`adm-filter-status`) || {}).value || `ALL`;
+      const provVal = (document.getElementById(`adm-filter-province`) || {}).value || `ALL`;
+
+      const filtered = complaints.filter(function (c) {
+        if (statusVal !== `ALL` && c.status !== statusVal) return false;
+        if (provVal !== `ALL` && c.province !== provVal) return false;
+        if (searchVal) {
+          const hay = (c.id + ` ` + c.title + ` ` + c.category + ` ` + c.council + ` ` + c.district + ` ` + c.officer).toLowerCase();
+          if (hay.indexOf(searchVal) === -1) return false;
+        }
+        return true;
+      });
+
+      if (countEl) countEl.textContent = filtered.length + ` of ` + complaints.length + ` records shown`;
+      tbody.innerHTML = ``;
+
+      if (filtered.length === 0) {
+        const emptyRow = document.createElement(`tr`);
+        emptyRow.innerHTML = `<td colspan="7" style="text-align:center; padding:var(--space-xl); color:var(--on-surface-variant);">No complaints match your current filter criteria. Clear filters to view all records.</td>`;
+        tbody.appendChild(emptyRow);
+        return;
+      }
+
+      filtered.forEach(function (c) {
+        const tr = document.createElement(`tr`);
+
+        const officerOptions = FIELD_OFFICERS.map(function (off) {
+          const sel = (off === c.officer) ? ` selected` : ``;
+          return `<option value="${escapeHtml(off)}"${sel}>${escapeHtml(off)}</option>`;
+        }).join(``);
+
+        const statusOptions = STAGES.map(function (st) {
+          const sel = (st === c.status) ? ` selected` : ``;
+          return `<option value="${escapeHtml(st)}"${sel}>${escapeHtml(st)}</option>`;
+        }).join(``);
+
+        const identityHtml = c.anonymous
+          ? `<span class="anon-badge">ANONYMOUS</span>`
+          : `<span>${escapeHtml(c.reporterName)}</span>`;
+
+        tr.innerHTML = `
+          <td><span class="mono-code">${escapeHtml(c.id)}</span></td>
+          <td>
+            <strong>${escapeHtml(c.title)}</strong><br>
+            <span style="font-size:0.8125rem; color:var(--on-surface-variant);">${escapeHtml(c.category)}</span>
+          </td>
+          <td>
+            <span>${escapeHtml(c.council)}</span><br>
+            <span style="font-size:0.8125rem; color:var(--on-surface-variant);">${escapeHtml(c.district)} &middot; ${escapeHtml(c.province)}</span>
+          </td>
+          <td>
+            <span class="mono-code" style="font-size:0.75rem;">${escapeHtml(c.submittedAt)}</span><br>
+            ${identityHtml}
+          </td>
+          <td>
+            <select class="table-select" aria-label="Assign officer for ${escapeHtml(c.id)}" onchange="updateComplaintOfficer('${escapeHtml(c.id)}', this.value)">
+              ${officerOptions}
+            </select>
+          </td>
+          <td>
+            <select class="table-select" aria-label="Update status for ${escapeHtml(c.id)}" onchange="updateComplaintStatus('${escapeHtml(c.id)}', this.value)">
+              ${statusOptions}
+            </select>
+          </td>
+          <td>
+            <button type="button" class="btn btn-outline btn-sm" onclick="inspectComplaint('${escapeHtml(c.id)}')">Track</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function showAdminToast(message) {
+      const toast = document.getElementById(`admin-toast`);
+      if (!toast) return;
+      toast.textContent = message;
+      toast.style.display = `block`;
+      setTimeout(function () {
+        toast.style.display = `none`;
+      }, 3200);
+    }
+
+    function updateComplaintOfficer(id, officerName) {
+      const item = complaints.find(function (c) { return c.id === id; });
+      if (!item) return;
+      item.officer = officerName;
+      const ts = formatNowTimestamp();
+
+      if (officerName !== `Unassigned` && item.status === `Received`) {
+        item.status = `Assigned`;
+        item.history.push({
+          stage: `Assigned`,
+          time: ts,
+          note: `Assigned to ` + officerName + ` by Admin Dispatcher.`
+        });
+      } else {
+        item.history.push({
+          stage: item.status,
+          time: ts,
+          note: `Officer assignment updated to ` + officerName + `.`
+        });
+      }
+
+      persistAppState();
+      renderAdminDashboard();
+      showAdminToast(`Updated officer for ` + id + ` to ` + officerName + `.`);
+    }
+
+    function updateComplaintStatus(id, newStatus) {
+      const item = complaints.find(function (c) { return c.id === id; });
+      if (!item) return;
+      item.status = newStatus;
+      const ts = formatNowTimestamp();
+
+      const notes = {
+        'Received': `Returned to initial intake queue.`,
+        'Assigned': `Confirmed assignment to ` + (item.officer || `Municipal Officer`) + `.`,
+        'In Progress': `Field crew dispatched on site for active remediation.`,
+        'Resolved': `Remediation verified complete; case closed.`
+      };
+
+      item.history.push({
+        stage: newStatus,
+        time: ts,
+        note: notes[newStatus] || `Status updated to ` + newStatus + `.`
+      });
+
+      if (newStatus === `Resolved`) {
+        item.notifyChannel = item.anonymous
+          ? `Anonymous Portal Notice Active (Resolved)`
+          : `Closure Notification Sent (` + (item.reporterPhone || item.reporterEmail || `Portal`) + `)`;
+      }
+
+      persistAppState();
+      renderAdminDashboard();
+      showAdminToast(`Status for ` + id + ` updated to ` + newStatus + `.`);
+    }
+
+    function inspectComplaint(id) {
+      activeTrackId = id;
+      switchTab(`track`);
+    }
+
+    function exportComplaintsCsv() {
+      const header = [`RefID`, `Title`, `Category`, `Province`, `District`, `Council`, `Street`, `Latitude`, `Longitude`, `Anonymous`, `Status`, `Officer`, `SubmittedAt`];
+      const rows = complaints.map(function (c) {
+        return [
+          c.id, c.title, c.category, c.province, c.district, c.council,
+          c.street, c.lat, c.lng, c.anonymous ? `Yes` : `No`, c.status, c.officer, c.submittedAt
+        ].map(function (val) {
+          return `"` + String(val == null ? `` : val).replace(/"/g, `""`) + `"`;
+        }).join(`,`);
+      });
+      const csv = [header.join(`,`)].concat(rows).join(`\n`);
+
+      if (window.notebookAppApi && typeof window.notebookAppApi.triggerFileDownload === `function`) {
+        window.notebookAppApi.triggerFileDownload({
+          content: csv,
+          contentType: `text/csv`,
+          encoding: `UTF-8`,
+          filename: `clean-sri-lanka-complaints.csv`
+        });
+        showAdminToast(`Exported ` + complaints.length + ` complaint records to CSV.`);
+      } else {
+        const blob = new Blob([csv], { type: `text/csv;charset=utf-8;` });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement(`a`);
+        a.href = url;
+        a.download = `clean-sri-lanka-complaints.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showAdminToast(`Exported ` + complaints.length + ` complaint records to CSV.`);
+      }
+    }
+
+    function resetDemoState(btn) {
+      if (btn && btn.dataset.armed !== `true`) {
+        btn.dataset.armed = `true`;
+        btn.textContent = `Confirm Reset?`;
+        setTimeout(function () {
+          if (btn.dataset.armed === `true`) {
+            btn.dataset.armed = `false`;
+            btn.textContent = `Reset Demo Data`;
+          }
+        }, 3500);
+        return;
+      }
+      if (btn) {
+        btn.dataset.armed = `false`;
+        btn.textContent = `Reset Demo Data`;
+      }
+      complaints = createSeedComplaints();
+      activeTrackId = complaints[0].id;
+      persistAppState();
+      renderAdminDashboard();
+      renderOverviewMetrics();
+      showAdminToast(`System dataset restored to baseline records.`);
+    }
+
+    /* =====================================================================
+       8. INITIALIZATION
+       ===================================================================== */
+    async function initApp() {
+      try {
+        if (window.notebookAppApi && typeof window.notebookAppApi.getAppState === `function`) {
+          const saved = await window.notebookAppApi.getAppState();
+          if (saved && Array.isArray(saved.complaints) && saved.complaints.length > 0) {
+            complaints = saved.complaints;
+          }
+          if (saved && saved.lastTrackedId) {
+            activeTrackId = saved.lastTrackedId;
+          }
+        }
+      } catch (err) {
+        // Fallback to seed data
+      }
+
+      populateProvinceDropdowns();
+      renderOverviewMetrics();
+      renderTrackerView(activeTrackId);
+
+      if (window.lucide && typeof window.lucide.createIcons === `function`) {
+        window.lucide.createIcons();
+      }
+
+      if (window.notebookAppApi && typeof window.notebookAppApi.notifyAppReady === `function`) {
+        window.notebookAppApi.notifyAppReady();
+      }
+    }
+
+    document.addEventListener(`DOMContentLoaded`, function () {
+      const dz = document.getElementById(`photo-dropzone`);
+      if (dz) {
+        dz.addEventListener(`dragover`, function (e) {
+          e.preventDefault();
+          dz.classList.add(`is-dragover`);
+        });
+        dz.addEventListener(`dragleave`, function () {
+          dz.classList.remove(`is-dragover`);
+        });
+        dz.addEventListener(`drop`, function (e) {
+          e.preventDefault();
+          dz.classList.remove(`is-dragover`);
+          if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            const input = document.getElementById(`issue-photo-input`);
+            if (input) {
+              input.files = e.dataTransfer.files;
+              handlePhotoSelected({ target: input });
+            }
+          }
+        });
+      }
+      initApp();
+    });
+  </script>
+</body>
+</html>
